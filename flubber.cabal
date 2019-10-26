@@ -13,24 +13,30 @@ category:     Network
 library
   exposed-modules:
       Network.Flubber.Config
-    , Network.Flubber.Plugin.Types
+    , Network.Flubber.Plugins.Types
   build-depends:
       aeson      ^>= 1.4.5.0
     , base       ^>= 4.12.0.0
+    , bytestring ^>= 0.10.8.2
     , containers ^>= 0.6.2.1
     , either     ^>= 5.0.1.1
     , htoml      ^>= 1.0.0.3
     , lens       ^>= 4.17.1
     , mtl        ^>= 2.2.2
     , text       ^>= 1.2.4.0
+    , time       ^>= 1.9.3
     , warp       ^>= 3.3.3
-  extensions:
+  default-extensions:
       DataKinds
     , DeriveGeneric
+    , FlexibleInstances
+    , MultiParamTypeClasses
     , OverloadedStrings
     , TemplateHaskell
+    , TypeFamilies
     , TypeOperators
-  hs-source-dirs:   src
+  ghc-options: -Wall
+  hs-source-dirs: src
   default-language: Haskell2010
 
 executable flubber
@@ -42,8 +48,9 @@ executable flubber
     , optparse-applicative ^>= 0.15.1.0
     , text                 ^>= 1.2.4.0
     , warp                 ^>= 3.3.3
-  extensions:
+  default-extensions:
       LambdaCase
     , TemplateHaskell
-  hs-source-dirs:   app
+  ghc-options: -Wall
+  hs-source-dirs: app
   default-language: Haskell2010

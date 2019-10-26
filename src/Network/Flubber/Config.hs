@@ -5,6 +5,7 @@ module Network.Flubber.Config
   , Plugin(..)
   , configPlugins
   , configPort
+  , pluginArgs
   , pluginPath
   , readConfig
   ) where
@@ -27,7 +28,8 @@ import Network.Wai.Handler.Warp (Port)
 import Text.Toml (parseTomlDoc)
 
 data Plugin = MkPlugin
-  { _pluginPath :: Text
+  { _pluginArgs :: [Text]
+  , _pluginPath :: Text
   } deriving (Eq, Generic, Show)
 
 $(deriveFromJSON defaultOptions{fieldLabelModifier = map toLower . drop 7} ''Plugin)
