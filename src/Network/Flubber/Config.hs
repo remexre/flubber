@@ -1,29 +1,48 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Network.Flubber.Config
   ( Config(..)
   , Plugin(..)
+  , configPlugins
+  , configPort
+  , pluginPath
   , readConfig
   ) where
 
+import Prelude hiding (readFile)
+
+import Control.Lens (makeLenses)
+import Control.Monad.Except (liftEither, runExceptT)
+import Control.Monad.IO.Class (MonadIO(..))
+import Data.Aeson (FromJSON(..), ToJSON(..))
+import Data.Aeson.TH (Options(..), defaultOptions, deriveFromJSON)
+import Data.Aeson.Types (parseEither)
+import Data.Char (toLower)
+import Data.Either.Combinators (mapLeft)
 import Data.Map.Strict (Map)
 import Data.Text (Text)
-import Toml (TomlCodec, (.=))
-import qualified Toml
-
-data Config = MkConfig
-  { configPlugins :: Map Text Plugin
-  } deriving (Eq, Show)
+import Data.Text.IO (readFile)
+import GHC.Generics (Generic)
+import Network.Wai.Handler.Warp (Port)
+import Text.Toml (parseTomlDoc)
 
 data Plugin = MkPlugin
-  { pluginPath :: Text
-  } deriving (Eq, Show)
+  { _pluginPath :: Text
+  } deriving (Eq, Generic, Show)
 
-configCodec :: TomlCodec Config
-configCodec = (MkConfig . _)
-  <$> Toml.table (Toml.list pluginCodec "") "plugins" .= configPlugins
+$(deriveFromJSON defaultOptions{fieldLabelModifier = map toLower . drop 7} ''Plugin)
+makeLenses ''Plugin
 
-pluginCodec :: TomlCodec Plugin
-pluginCodec = MkPlugin
-  <$> Toml.text "path" .= pluginPath
+data Config = MkConfig
+  { _configPlugins :: Map Text Plugin
+  , _configPort :: Port
+  } deriving (Eq, Generic, Show)
 
-readConfig :: Text -> IO Config
-readConfig = undefined
+$(deriveFromJSON defaultOptions{fieldLabelModifier = map toLower . drop 7} ''Config)
+makeLenses ''Config
+
+readConfig :: FilePath -> IO (Either String Config)
+readConfig path = runExceptT $ do
+  contents <- liftIO $ readFile path
+  table <- liftEither (mapLeft show (parseTomlDoc path contents))
+  liftEither $ parseEither parseJSON (toJSON table)
