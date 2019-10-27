@@ -65,11 +65,19 @@ module Network.Flubber.Plugins.Types
   , ResponseError(..)
   , responseErrorMessage
   , responseErrorRetry
+  , Update(..)
+  , _RoomUpsert
+  , _RoomDelete
+  , _MessageUpsert
+  , _MessageDelete
   ) where
 
-import Control.Lens (makeLenses, makePrisms, makeWrapped)
-import Data.Aeson (Value)
+import Control.Lens ((^.), makeLenses, makePrisms, makeWrapped)
+import Data.Aeson (FromJSON(..), Parser, ToJSON(..), Value, (.:), (.=), object, withObject)
+import Data.Aeson.TH (Options(..), defaultOptions, deriveFromJSON)
 import Data.ByteString (ByteString)
+import qualified Data.ByteString.Base64 as B64
+import qualified Data.ByteString.UTF8 as BS
 import Data.Sequence (Seq)
 import Data.Text (Text)
 import Data.Time (UTCTime)
@@ -171,6 +179,13 @@ data ResponseError = MkResponseError
   , _responseErrorRetry :: Bool
   } deriving (Eq, Show)
 
+data Update
+  = RoomUpsert Room
+  | RoomDelete RoomID
+  | MessageUpsert RoomID Message
+  | MessageDelete RoomID MessageID
+  deriving (Eq, Show)
+
 makeLenses ''InitInfo
 makeWrapped ''MessageID
 makeLenses ''Message
@@ -186,3 +201,35 @@ makePrisms ''RequestBody
 makeLenses ''Response
 makePrisms ''ResponseBody
 makeLenses ''ResponseError
+makePrisms ''Update
+
+$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''InitInfo)
+$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''MessageID)
+$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''Message)
+
+parseB64 :: Parser String -> Parser ByteString
+parseB64 = undefined
+
+instance FromJSON MessageAttachment where
+  parseJSON = withObject "MessageAttachment" $ \v ->
+    MkMessageAttachment
+      <$> v .: "mime"
+      <*> parseB64 (v .: "data")
+instance ToJSON MessageAttachment where
+  toJSON ma = object
+    [ "mime" .= (ma^.messageAttachmentMIME)
+    , "data" .= BS.toString (B64.encode (ma^.messageAttachmentData))
+    ]
+
+$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''MessageContent)
+$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''MessageSend)
+$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''RoomID)
+$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''Room)
+$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''RoomCreate)
+$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''UserID)
+$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''Request)
+$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''RequestBody)
+$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''Response)
+$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''ResponseBody)
+$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''ResponseError)
+$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''Update)

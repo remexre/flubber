@@ -3,7 +3,7 @@ module Network.Flubber.Plugins
   , Plugin
   ) where
 
-import Conduit (sourceHandle)
+import Conduit (ConduitT, (.|), runConduit, sinkHandle, sourceHandle)
 import Control.Lens ((^.), makeLenses)
 import Control.Monad.IO.Class (MonadIO)
 import Network.Flubber.Config
@@ -12,11 +12,15 @@ import Network.Flubber.Config
   , pluginConfigPath
   )
 import Network.Flubber.Monad (FlubberT)
+import Network.Flubber.Plugins.Types (Request, Response, Update)
+import Network.Flubber.Utils (conduitFromJSON, conduitToJSON, conduitXlatJSON)
 import System.IO (Handle)
 import System.Process.Typed
   ( Process
   , ProcessConfig
   , createPipe
+  , getStdin
+  , getStdout
   , proc
   , setStdin
   , setStdout
@@ -24,7 +28,9 @@ import System.Process.Typed
   )
 
 class MonadPlugin m where
-  spawnPlugin :: PluginConfig -> m Plugin
+  spawnPlugin :: PluginConfig -> m ( Plugin
+                                   , ConduitT () (Either Response Update) m ()
+                                   , ConduitT Request () m ())
 
 data Plugin = MkPlugin
   { _process :: Process Handle Handle ()
@@ -41,5 +47,9 @@ makeConfigFor p =
 instance MonadIO m => MonadPlugin (FlubberT m) where
   spawnPlugin p = do
     let config = makeConfigFor p
-    MkPlugin
-      <$> startProcess config
+    process <- startProcess config
+    let stdinValue = sourceHandle (getStdin process) .| conduitFromJSON
+    let stdout = conduitToJSON .| sinkHandle (getStdout process)
+    infoValue <- runConduit stdinValue
+    let stdin = stdin .| conduitXlatJSON
+    pure (MkPlugin process, stdin, stdout)

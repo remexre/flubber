@@ -1,6 +1,7 @@
 module Network.Flubber.Utils
   ( conduitFromJSON
   , conduitToJSON
+  , conduitXlatJSON
   ) where
 
 import Conduit (ConduitT, (.|), concatC, mapC)
@@ -27,3 +28,6 @@ conduitFromJSON = void (mapAccumWhileM loop defaultCont) .| concatC
 
 conduitToJSON :: (Monad m, ToJSON a) => ConduitT a ByteString m ()
 conduitToJSON = mapC (BS.fromString . show . toJSON)
+
+conduitXlatJSON :: (Monad m, ToJSON a, FromJSON b) => ConduitT a b m ()
+conduitXlatJSON = undefined
