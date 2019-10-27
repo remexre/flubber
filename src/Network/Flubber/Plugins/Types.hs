@@ -3,10 +3,6 @@ module Network.Flubber.Plugins.Types
   , initInfoPluginName
   , initInfoPluginVersion
   , initInfoProtocolVersion
-  , Version(..)
-  , versionMajor
-  , versionMinor
-  , versionPatch
   , MessageID(..)
   , Message(..)
   , messageID
@@ -81,15 +77,9 @@ import Data.Word (Word32)
 
 data InitInfo = MkInitInfo
   { _initInfoPluginName :: Text
-  , _initInfoPluginVersion :: Version
-  , _initInfoProtocolVersion :: Version
+  , _initInfoPluginVersion :: (Word32, Word32, Word32)
+  , _initInfoProtocolVersion :: (Word32, Word32, Word32)
   } deriving (Eq, Show)
-
-data Version = MkVersion
-  { _versionMajor :: Word32
-  , _versionMinor :: Word32
-  , _versionPatch :: Word32
-  } deriving (Eq, Ord, Show)
 
 newtype MessageID = MkMessageID Text
   deriving (Eq, Ord, Show)
@@ -182,7 +172,6 @@ data ResponseError = MkResponseError
   } deriving (Eq, Show)
 
 makeLenses ''InitInfo
-makeLenses ''Version
 makeWrapped ''MessageID
 makeLenses ''Message
 makeLenses ''MessageAttachment

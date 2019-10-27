@@ -2,11 +2,11 @@
 
 module Network.Flubber.Config
   ( Config(..)
-  , Plugin(..)
+  , PluginConfig(..)
   , configPlugins
   , configPort
-  , pluginArgs
-  , pluginPath
+  , pluginConfigArgs
+  , pluginConfigPath
   , readConfig
   ) where
 
@@ -27,16 +27,16 @@ import GHC.Generics (Generic)
 import Network.Wai.Handler.Warp (Port)
 import Text.Toml (parseTomlDoc)
 
-data Plugin = MkPlugin
-  { _pluginArgs :: [Text]
-  , _pluginPath :: Text
+data PluginConfig = MkPluginConfig
+  { _pluginConfigArgs :: [String]
+  , _pluginConfigPath :: FilePath
   } deriving (Eq, Generic, Show)
 
-$(deriveFromJSON defaultOptions{fieldLabelModifier = map toLower . drop 7} ''Plugin)
-makeLenses ''Plugin
+$(deriveFromJSON defaultOptions{fieldLabelModifier = map toLower . drop 13} ''PluginConfig)
+makeLenses ''PluginConfig
 
 data Config = MkConfig
-  { _configPlugins :: Map Text Plugin
+  { _configPlugins :: Map Text PluginConfig
   , _configPort :: Port
   } deriving (Eq, Generic, Show)
 

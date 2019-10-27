@@ -1,9 +1,15 @@
 module Main where
 
-import Control.Concurrent (forkIO)
 import Control.Lens ((^.), makeLenses)
+import Data.Foldable (forM_)
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe)
-import Network.Flubber.Config (configPlugins, configPort, readConfig)
+import Data.Text (Text)
+import Katip (Severity(..), katipAddContext, logTM, sl)
+import Network.Flubber.Config (PluginConfig, configPlugins, configPort, readConfig)
+import Network.Flubber.Monad (FlubberT, runFlubberT)
+import Network.Flubber.Plugins (MonadPlugin(..))
 import Network.Wai.Handler.Warp (Port)
 import Options.Applicative
 
@@ -38,4 +44,12 @@ main = do
     Right config -> pure config
   let plugins = config^.configPlugins
   let port = fromMaybe (config^.configPort) (args^.argsPort)
-  print (port, plugins)
+  runFlubberT (run plugins port)
+
+run :: Map Text PluginConfig -> Port -> FlubberT IO ()
+run plugins port = do
+  forM_ (Map.toList plugins) $ \(name, plugin) -> do
+    katipAddContext (sl "plugin" name) $ do
+      spawnPlugin plugin
+  katipAddContext (sl "port" port) $ do
+    $(logTM) InfoS "Osu!game"
