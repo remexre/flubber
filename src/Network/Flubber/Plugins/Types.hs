@@ -57,7 +57,7 @@ module Network.Flubber.Plugins.Types
   , Response(..)
   , responseSequenceNumber
   , responseBody
-  , ResponseBody
+  , ResponseBody(..)
   , _Success
   , _Message
   , _Room
@@ -73,15 +73,18 @@ module Network.Flubber.Plugins.Types
   ) where
 
 import Control.Lens ((^.), makeLenses, makePrisms, makeWrapped)
-import Data.Aeson (FromJSON(..), Parser, ToJSON(..), Value, (.:), (.=), object, withObject)
-import Data.Aeson.TH (Options(..), defaultOptions, deriveFromJSON)
+import Data.Aeson (FromJSON(..), ToJSON(..), Value, (.:), (.=), object, withObject)
+import Data.Aeson.TH (Options(..), defaultOptions, deriveJSON)
+import Data.Aeson.Types (Parser, Value(..), prependFailure, typeMismatch)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.UTF8 as BS
 import Data.Sequence (Seq)
 import Data.Text (Text)
+import qualified Data.Text as T
 import Data.Time (UTCTime)
 import Data.Word (Word32)
+import Network.Flubber.Utils (dropLH)
 
 data InitInfo = MkInitInfo
   { _initInfoPluginName :: Text
@@ -203,12 +206,15 @@ makePrisms ''ResponseBody
 makeLenses ''ResponseError
 makePrisms ''Update
 
-$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''InitInfo)
-$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''MessageID)
-$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''Message)
+$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 9} ''InitInfo)
+$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''MessageID)
+$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''Message)
 
 parseB64 :: Parser String -> Parser ByteString
-parseB64 = undefined
+parseB64 field = field >>= \s ->
+  case B64.decode (BS.fromString s) of
+    Left err -> prependFailure err (typeMismatch "Base-64 String" (String $ T.pack s))
+    Right x -> pure x
 
 instance FromJSON MessageAttachment where
   parseJSON = withObject "MessageAttachment" $ \v ->
@@ -221,15 +227,15 @@ instance ToJSON MessageAttachment where
     , "data" .= BS.toString (B64.encode (ma^.messageAttachmentData))
     ]
 
-$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''MessageContent)
-$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''MessageSend)
-$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''RoomID)
-$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''Room)
-$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''RoomCreate)
-$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''UserID)
-$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''Request)
-$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''RequestBody)
-$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''Response)
-$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''ResponseBody)
-$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''ResponseError)
-$(deriveFromJSON defaultOptions{fieldLabelModifier = drop 0} ''Update)
+$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''MessageContent)
+$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''MessageSend)
+$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''RoomID)
+$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''Room)
+$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''RoomCreate)
+$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''UserID)
+$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''Request)
+$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''RequestBody)
+$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''Response)
+$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''ResponseBody)
+$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''ResponseError)
+$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''Update)

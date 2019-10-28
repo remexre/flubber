@@ -1,6 +1,6 @@
 port = 3000
 
 [plugins.irc]
-path = "cat"
+path = "./plugins/trivial/trivial.js"
 args = []
 # args = ["--host", "acm.umn.edu", "--port", "6669"]

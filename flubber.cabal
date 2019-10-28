@@ -15,7 +15,9 @@ library
       Network.Flubber.Config
     , Network.Flubber.Monad
     , Network.Flubber.Plugins
+    , Network.Flubber.Plugins.Internal
     , Network.Flubber.Plugins.Types
+    , Network.Flubber.Plugins.Worker
     , Network.Flubber.Utils
   build-depends:
       aeson             ^>= 1.4.5.0
@@ -26,6 +28,7 @@ library
     , containers        ^>= 0.6.2.1
     , either            ^>= 5.0.1.1
     , exceptions        ^>= 0.10.3
+    , extra             ^>= 1.6.18
     , htoml             ^>= 1.0.0.3
     , json-stream       ^>= 0.4.2.4
     , katip             ^>= 0.8.3.0
@@ -39,12 +42,15 @@ library
   default-extensions:
       DataKinds
     , DeriveGeneric
+    , FlexibleContexts
     , FlexibleInstances
+    , GADTs
     , GeneralizedNewtypeDeriving
     , LambdaCase
     , MultiParamTypeClasses
     , OverloadedStrings
     , TemplateHaskell
+    , TupleSections
     , TypeFamilies
     , TypeOperators
   ghc-options: -Wall

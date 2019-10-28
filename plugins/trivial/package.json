@@ -1,0 +1,14 @@
+{
+  "name": "trivial",
+  "version": "1.0.0",
+  "description": "",
+  "main": "trivial.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "stream-json": "^1.3.1"
+  }
+}

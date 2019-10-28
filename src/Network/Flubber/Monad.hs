@@ -1,17 +1,26 @@
 module Network.Flubber.Monad
   ( FlubberT(..)
+  , runFlubberT
   , FlubberConfig(..)
   , logContext
   , logEnv
   , logNamespace
-  , runFlubberT
+  , FlubberState(..)
+  , plugins
+  , NoSuchPlugin(..)
+  , getPlugin
   ) where
 
-import Control.Lens (makeLenses, over, view)
-import Control.Monad.Catch (MonadCatch, MonadMask, MonadThrow, bracket)
+import Control.Lens (makeLenses, ix, over, preuse, use, view)
+import Control.Monad.Catch (Exception, MonadCatch, MonadMask, MonadThrow(..), bracket)
 import Control.Monad.IO.Class (MonadIO(..))
 import Control.Monad.Reader (ReaderT(..))
 import Control.Monad.Reader.Class (MonadReader(..))
+import Control.Monad.State.Class (MonadState(..))
+import Control.Monad.State.Strict (StateT, evalStateT)
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Text (Text)
 import Katip
   ( ColorStrategy(..)
   , Katip(..)
@@ -19,13 +28,17 @@ import Katip
   , LogContexts
   , LogEnv
   , Namespace(..)
+  , Severity(..)
   , Verbosity(..)
   , closeScribes
   , defaultScribeSettings
   , initLogEnv
+  , logTM
   , mkHandleScribe
   , registerScribe
+  , showLS
   )
+import Network.Flubber.Plugins.Internal (Plugin)
 import System.IO (stderr)
 
 data FlubberConfig = MkFlubberConfig
@@ -36,9 +49,17 @@ data FlubberConfig = MkFlubberConfig
 
 makeLenses ''FlubberConfig
 
+data FlubberState = MkFlubberState
+  { _plugins :: Map Text Plugin
+  } deriving Show
+
+makeLenses ''FlubberState
+
 newtype FlubberT m a = MkFlubberT
-  { unFlubberT :: ReaderT FlubberConfig m a
-  } deriving (Functor, Applicative, Monad, MonadCatch, MonadIO, MonadMask, MonadReader FlubberConfig, MonadThrow)
+  { unFlubberT :: ReaderT FlubberConfig (StateT FlubberState m) a
+  } deriving ( Functor, Applicative, Monad, MonadCatch, MonadIO, MonadMask
+             , MonadReader FlubberConfig, MonadState FlubberState, MonadThrow
+             )
 
 instance MonadIO m => Katip (FlubberT m) where
   getLogEnv = view logEnv
@@ -62,4 +83,21 @@ runFlubberT body = do
           , _logEnv = le
           , _logNamespace = "flubber"
           }
-    runReaderT (unFlubberT body) config
+    evalStateT (runReaderT (unFlubberT body) config) (MkFlubberState Map.empty)
+
+newtype NoSuchPlugin
+  = MkNoSuchPlugin Text
+  deriving (Eq, Show)
+
+instance Exception NoSuchPlugin
+
+getPlugin :: (KatipContext m, MonadState FlubberState m, MonadThrow m) => Text -> m Plugin
+getPlugin name = do
+  maybePlugin <- preuse (plugins.ix name)
+  case maybePlugin of
+    Just plugin -> pure plugin
+    Nothing -> do
+      allPs <- showLS . Map.keys <$> use plugins
+      let name' = showLS name
+      $(logTM) ErrorS ("Couldn't find " <> name' <> "; the following were available: " <> allPs)
+      throwM (MkNoSuchPlugin name)
