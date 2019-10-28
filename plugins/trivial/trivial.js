@@ -20,6 +20,7 @@ const stdin = process.stdin
   .pipe(StreamValues.withParser())
   .pipe(new GetValue());
 const send = value => console.log(JSON.stringify(value));
+const time = () => Math.floor(Date.now() / 1000);
 
 // InitInfo
 send({
@@ -31,3 +32,27 @@ send({
 stdin.on("data", request => {
   console.error("request:", request);
 });
+
+const startTime = time();
+setInterval(() => {
+  console.error("Sending update...");
+  send({
+    type: "MessageUpsert",
+    value: {
+      id: "test",
+      sender: "tester",
+      recipient: {
+        type: "RoomID",
+        value: "#general",
+      },
+      attachments: [],
+      content: {
+        type: "Text",
+        value: "Hello!",
+      },
+      createTime: startTime,
+      editTime: time(),
+      extra: null
+    },
+  });
+}, 1000);

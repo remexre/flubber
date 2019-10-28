@@ -34,10 +34,14 @@ library
     , katip             ^>= 0.8.3.0
     , lens              ^>= 4.17.1
     , mtl               ^>= 2.2.2
+    , stm               ^>= 2.5.0.0
+    , stm-chans         ^>= 3.0.0.4
+    , stm-conduit       ^>= 4.0.1
     , text              ^>= 1.2.4.0
     , time              ^>= 1.9.3
     , typed-process     ^>= 0.2.6.0
     , utf8-string       ^>= 1.0.1.1
+    , void              ^>= 0.7.3
     , warp              ^>= 3.3.3
   default-extensions:
       DataKinds
@@ -49,6 +53,7 @@ library
     , LambdaCase
     , MultiParamTypeClasses
     , OverloadedStrings
+    , Rank2Types
     , TemplateHaskell
     , TupleSections
     , TypeFamilies

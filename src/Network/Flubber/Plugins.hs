@@ -6,14 +6,14 @@ module Network.Flubber.Plugins
   , Req(..)
   ) where
 
-import Conduit ((.|), headC, runConduit, sinkHandle, sourceHandle)
-import Control.Concurrent (forkIO)
-import Control.Concurrent.Chan (newChan, writeChan)
+import Conduit -- ((.|), headC, runConduit, sinkHandle, sourceHandle)
 import Control.Concurrent.MVar (newEmptyMVar, readMVar)
-import Control.Lens ((.=), (^.), at, ix, preuse)
+import Control.Concurrent.STM.TBMChan (newTBMChan, writeTBMChan)
+import Control.Lens ((.=), (^.), (^?), at, ix, preuse)
 import Control.Monad.Catch (Exception, MonadThrow(..))
 import Control.Monad.IO.Class (MonadIO(..))
-import Data.Aeson (Value, fromJSON)
+import Control.Monad.STM (atomically)
+import Data.Aeson (FromJSON(..), Value, fromJSON)
 import qualified Data.Aeson as Aeson
 import Network.Flubber.Config
   ( PluginConfig(..)
@@ -26,15 +26,18 @@ import Network.Flubber.Plugins.Internal
   , Plugin(..)
   , pluginInitInfo
   , pluginRequests
-  , Req(..)
+  , Req
+  , prismForResTo
+  , unpackReq
   )
+import qualified Network.Flubber.Plugins.Internal as Req
 import Network.Flubber.Plugins.Types
   ( InitInfo
   , RequestBody(..)
   , ResponseBody(..)
   , initInfoProtocolVersion
   )
-import Network.Flubber.Plugins.Worker (workerThread)
+import Network.Flubber.Plugins.Worker (startWorkerThreads)
 import Network.Flubber.Utils (conduitFromJSON, conduitToJSON, conduitXlatJSON)
 import System.IO (Handle)
 import System.Process.Typed
@@ -75,9 +78,6 @@ checkInitInfo ii = if ok then pure () else throwM (BadInitInfo ii)
   where ok = (major == 0 && minor >= 1)
         (major, minor, _) = ii^.initInfoProtocolVersion
 
-makeRequest :: Monad m => Req res -> (RequestBody, ResponseBody -> m res)
-makeRequest = undefined
-
 instance (MonadIO m, MonadThrow m) => MonadPlugin (FlubberT m) where
   startPlugin name conf = do
     -- Start the subprocess.
@@ -91,11 +91,11 @@ instance (MonadIO m, MonadThrow m) => MonadPlugin (FlubberT m) where
     checkInitInfo initInfo
     let stdout = stdoutValue .| conduitXlatJSON InvalidResponseOrUpdate
     -- Spawn the worker thread.
-    requests <- liftIO newChan
-    updates <- liftIO newChan
-    thread <- liftIO $ forkIO (workerThread requests updates stdin stdout)
+    requests <- liftIO . atomically $ newTBMChan 10
+    updates <- liftIO . atomically $ newTBMChan 10
+    liftIO $ startWorkerThreads requests updates stdin stdout
     -- Store the plugin back.
-    let plugin = MkPlugin initInfo process requests thread updates
+    let plugin = MkPlugin initInfo process requests updates
     plugins.at name .= Just plugin
     -- Return.
     pure initInfo
@@ -104,10 +104,11 @@ instance (MonadIO m, MonadThrow m) => MonadPlugin (FlubberT m) where
 
   request name req = do
     plugin <- getPlugin name
-    let (body, parse) = makeRequest req
     var <- liftIO newEmptyMVar
-    liftIO $ writeChan (plugin^.pluginRequests) (body, var)
+    liftIO . atomically $ writeTBMChan (plugin^.pluginRequests) (unpackReq req, var)
     res <- liftIO $ readMVar var
-    parse res
+    case res^?prismForResTo req of
+      Just _ -> undefined
+      Nothing -> undefined
 
   updatesFor name = undefined <$> getPlugin name

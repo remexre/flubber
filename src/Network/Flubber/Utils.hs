@@ -2,12 +2,20 @@ module Network.Flubber.Utils
   ( conduitFromJSON
   , conduitToJSON
   , conduitXlatJSON
-  , dropLH
+  , jsonOptions
   ) where
 
 import Conduit (ConduitT, (.|), concatC, mapC, mapMC)
 import Control.Monad.Catch (Exception, MonadThrow(..))
-import Data.Aeson.Types (FromJSON(..), Result(..), ToJSON(..), fromJSON)
+import Data.Aeson.Types
+  ( FromJSON(..)
+  , Options(..)
+  , Result(..)
+  , SumEncoding(..)
+  , ToJSON(..)
+  , defaultOptions
+  , fromJSON
+  )
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.UTF8 as BS
 import Data.Char (toLower)
@@ -37,7 +45,10 @@ conduitXlatJSON mkError = mapMC (helper . toJSON)
                      Success i -> pure i
                      Error s -> throwM (mkError s)
 
-dropLH :: Int -> String -> String
-dropLH _ [] = []
-dropLH 0 (h:t) = (toLower h):t
-dropLH n (_:t) = dropLH (n-1) t
+jsonOptions :: Int -> Options
+jsonOptions n = defaultOptions{fieldLabelModifier = dropLH n, sumEncoding = se}
+  where dropLH _ [] = []
+        dropLH 0 "ID" = "id" -- dumb hack...
+        dropLH 0 (h:t) = (toLower h):t
+        dropLH i (_:t) = dropLH (i-1) t
+        se = TaggedObject{tagFieldName = "type", contentsFieldName = "value"}

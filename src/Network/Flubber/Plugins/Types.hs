@@ -44,6 +44,9 @@ module Network.Flubber.Plugins.Types
   , roomCreateName
   , roomCreateSendable
   , UserID(..)
+  , RoomOrUserID(..)
+  , _RoomID
+  , _UserID
   , Request(..)
   , requestSequenceNumber
   , requestBody
@@ -65,6 +68,9 @@ module Network.Flubber.Plugins.Types
   , ResponseError(..)
   , responseErrorMessage
   , responseErrorRetry
+  , ResponseOrUpdate(..)
+  , _Response
+  , _Update
   , Update(..)
   , _RoomUpsert
   , _RoomDelete
@@ -74,17 +80,17 @@ module Network.Flubber.Plugins.Types
 
 import Control.Lens ((^.), makeLenses, makePrisms, makeWrapped)
 import Data.Aeson (FromJSON(..), ToJSON(..), Value, (.:), (.=), object, withObject)
-import Data.Aeson.TH (Options(..), defaultOptions, deriveJSON)
+import Data.Aeson.TH (Options(..), SumEncoding(..), deriveJSON)
 import Data.Aeson.Types (Parser, Value(..), prependFailure, typeMismatch)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.UTF8 as BS
+import Data.Int (Int64)
 import Data.Sequence (Seq)
 import Data.Text (Text)
 import qualified Data.Text as T
-import Data.Time (UTCTime)
 import Data.Word (Word32)
-import Network.Flubber.Utils (dropLH)
+import Network.Flubber.Utils (jsonOptions)
 
 data InitInfo = MkInitInfo
   { _initInfoPluginName :: Text
@@ -98,11 +104,11 @@ newtype MessageID = MkMessageID Text
 data Message = MkMessage
   { _messageID :: MessageID
   , _messageSender :: UserID
-  , _messageRecipient :: Either RoomID UserID
+  , _messageRecipient :: RoomOrUserID
   , _messageAttachments :: Seq MessageAttachment
   , _messageContent :: MessageContent
-  , _messageCreateTime :: UTCTime
-  , _messageEditTime :: UTCTime
+  , _messageCreateTime :: Int64
+  , _messageEditTime :: Int64
   , _messageExtra :: Value
   } deriving (Eq, Show)
 
@@ -126,7 +132,7 @@ data MessageContent
   deriving (Eq, Show)
 
 data MessageSend = MkMessageSend
-  { _messageSendRecipient :: Either RoomID UserID
+  { _messageSendRecipient :: RoomOrUserID
   , _messageSendAttachments :: Seq MessageAttachment
   , _messageSendContent :: MessageContent
   , _messageSendExtra :: Value
@@ -150,6 +156,11 @@ data RoomCreate = MkRoomCreate
 
 newtype UserID = MkUserID Text
   deriving (Eq, Ord, Show)
+
+data RoomOrUserID
+  = RoomID RoomID
+  | UserID UserID
+  deriving (Eq, Show)
 
 data Request = MkRequest
   { _requestSequenceNumber :: Word32
@@ -182,11 +193,16 @@ data ResponseError = MkResponseError
   , _responseErrorRetry :: Bool
   } deriving (Eq, Show)
 
+data ResponseOrUpdate
+  = Response Response
+  | Update Update
+  deriving (Eq, Show)
+
 data Update
   = RoomUpsert Room
   | RoomDelete RoomID
-  | MessageUpsert RoomID Message
-  | MessageDelete RoomID MessageID
+  | MessageUpsert Message
+  | MessageDelete MessageID
   deriving (Eq, Show)
 
 makeLenses ''InitInfo
@@ -199,16 +215,18 @@ makeWrapped ''RoomID
 makeLenses ''Room
 makeLenses ''RoomCreate
 makeWrapped ''UserID
+makePrisms ''RoomOrUserID
 makeLenses ''Request
 makePrisms ''RequestBody
 makeLenses ''Response
 makePrisms ''ResponseBody
 makeLenses ''ResponseError
+makePrisms ''ResponseOrUpdate
 makePrisms ''Update
 
-$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 9} ''InitInfo)
-$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''MessageID)
-$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''Message)
+$(deriveJSON (jsonOptions 9) ''InitInfo)
+$(deriveJSON (jsonOptions 0) ''MessageID)
+$(deriveJSON (jsonOptions 8) ''Message)
 
 parseB64 :: Parser String -> Parser ByteString
 parseB64 field = field >>= \s ->
@@ -227,15 +245,17 @@ instance ToJSON MessageAttachment where
     , "data" .= BS.toString (B64.encode (ma^.messageAttachmentData))
     ]
 
-$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''MessageContent)
-$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''MessageSend)
-$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''RoomID)
-$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''Room)
-$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''RoomCreate)
-$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''UserID)
-$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''Request)
-$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''RequestBody)
-$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''Response)
-$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''ResponseBody)
-$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''ResponseError)
-$(deriveJSON defaultOptions{fieldLabelModifier = dropLH 0} ''Update)
+$(deriveJSON (jsonOptions 15) ''MessageContent)
+$(deriveJSON (jsonOptions 0) ''MessageSend)
+$(deriveJSON (jsonOptions 0) ''RoomID)
+$(deriveJSON (jsonOptions 0) ''Room)
+$(deriveJSON (jsonOptions 0) ''RoomCreate)
+$(deriveJSON (jsonOptions 0) ''UserID)
+$(deriveJSON (jsonOptions 0) ''RoomOrUserID)
+$(deriveJSON (jsonOptions 0) ''Request)
+$(deriveJSON (jsonOptions 0) ''RequestBody)
+$(deriveJSON (jsonOptions 0) ''Response)
+$(deriveJSON (jsonOptions 0) ''ResponseBody)
+$(deriveJSON (jsonOptions 0) ''ResponseError)
+$(deriveJSON (jsonOptions 0){sumEncoding=UntaggedValue} ''ResponseOrUpdate)
+$(deriveJSON (jsonOptions 0) ''Update)
