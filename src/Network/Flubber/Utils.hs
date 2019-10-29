@@ -7,6 +7,7 @@ module Network.Flubber.Utils
 
 import Conduit (ConduitT, (.|), concatC, mapC, mapMC)
 import Control.Monad.Catch (Exception, MonadThrow(..))
+import Data.Aeson (encode)
 import Data.Aeson.Types
   ( FromJSON(..)
   , Options(..)
@@ -17,7 +18,7 @@ import Data.Aeson.Types
   , fromJSON
   )
 import Data.ByteString (ByteString)
-import qualified Data.ByteString.UTF8 as BS
+import Data.ByteString.Lazy (toStrict)
 import Data.Char (toLower)
 import Data.Conduit.Combinators (mapAccumWhileM)
 import Data.Functor (void)
@@ -36,7 +37,7 @@ conduitFromJSON mkError = void (mapAccumWhileM loop defaultCont) .| concatC
         handle (ParseDone rest) = pure $ Left (defaultCont . (<> rest))
 
 conduitToJSON :: (Monad m, ToJSON a) => ConduitT a ByteString m ()
-conduitToJSON = mapC (BS.fromString . show . toJSON)
+conduitToJSON = mapC (toStrict . encode)
 
 conduitXlatJSON :: (Exception e, MonadThrow m, ToJSON a, FromJSON b)
                 => (String -> e) -> ConduitT a b m ()

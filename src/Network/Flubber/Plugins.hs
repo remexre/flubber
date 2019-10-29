@@ -39,7 +39,7 @@ import Network.Flubber.Plugins.Types
   )
 import Network.Flubber.Plugins.Worker (startWorkerThreads)
 import Network.Flubber.Utils (conduitFromJSON, conduitToJSON, conduitXlatJSON)
-import System.IO (Handle)
+import System.IO (BufferMode(..), Handle, hSetBuffering)
 import System.Process.Typed
   ( Process
   , createPipe
@@ -50,6 +50,7 @@ import System.Process.Typed
   , setStdout
   , startProcess
   )
+import Debug.Trace (traceShowId)
 
 data PluginMisbehavior
   = BadInitInfo InitInfo
@@ -83,7 +84,9 @@ instance (MonadIO m, MonadThrow m) => MonadPlugin (FlubberT m) where
     -- Start the subprocess.
     process <- spawnPlugin conf
     -- Set up stdin.
-    let stdin = conduitToJSON .| mapC (<> "\n") .| sinkHandle (getStdin process)
+    let hStdin = getStdin process
+    liftIO $ hSetBuffering hStdin NoBuffering
+    let stdin = conduitToJSON .| mapC (<> "\n") .| mapC traceShowId .| sinkHandle hStdin
     -- Read the initInfo, and otherwise set up stdout.
     let stdoutValue = sourceHandle (getStdout process) .| conduitFromJSON InvalidValue
     initInfoValue <- liftIO $ runConduit (stdoutValue .| headC)

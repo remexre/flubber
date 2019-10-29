@@ -1,5 +1,8 @@
 module Main where
 
+import Conduit ((.|), runConduit, stdoutC)
+import Network.Flubber.Utils (conduitToJSON)
+
 import Control.Lens ((^.), makeLenses)
 import Control.Monad.IO.Class (MonadIO(..))
 import Data.Foldable (forM_)
@@ -57,4 +60,7 @@ run plugins port = do
   liftIO . print =<< request "irc" (RoomFind "#general")
 
   katipAddContext (sl "port" port) $ do
-    $(logTM) InfoS "Osu!game"
+    updates <- updatesFor "irc"
+    runConduit (updates .| conduitToJSON .| stdoutC)
+
+  liftIO $ putStrLn "Osu!game"
