@@ -7,8 +7,8 @@ module Network.Flubber.Plugins
   ) where
 
 import Conduit -- ((.|), headC, runConduit, sinkHandle, sourceHandle)
-import Control.Concurrent.MVar (newEmptyMVar, readMVar)
 import Control.Concurrent.STM.TBMChan (newTBMChan, writeTBMChan)
+import Control.Concurrent.STM.TMVar (newEmptyTMVar, readTMVar)
 import Control.Lens ((.=), (^.), (^?), at, ix, preuse)
 import Control.Monad.Catch (Exception, MonadThrow(..))
 import Control.Monad.IO.Class (MonadIO(..))
@@ -83,7 +83,7 @@ instance (MonadIO m, MonadThrow m) => MonadPlugin (FlubberT m) where
     -- Start the subprocess.
     process <- spawnPlugin conf
     -- Set up stdin.
-    let stdin = conduitToJSON .| sinkHandle (getStdin process)
+    let stdin = conduitToJSON .| mapC (<> "\n") .| sinkHandle (getStdin process)
     -- Read the initInfo, and otherwise set up stdout.
     let stdoutValue = sourceHandle (getStdout process) .| conduitFromJSON InvalidValue
     initInfoValue <- liftIO $ runConduit (stdoutValue .| headC)
@@ -104,9 +104,9 @@ instance (MonadIO m, MonadThrow m) => MonadPlugin (FlubberT m) where
 
   request name req = do
     plugin <- getPlugin name
-    var <- liftIO newEmptyMVar
+    var <- liftIO . atomically $ newEmptyTMVar
     liftIO . atomically $ writeTBMChan (plugin^.pluginRequests) (unpackReq req, var)
-    res <- liftIO $ readMVar var
+    res <- liftIO . atomically $ readTMVar var
     case res^?prismForResTo req of
       Just _ -> undefined
       Nothing -> undefined

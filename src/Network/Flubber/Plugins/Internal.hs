@@ -12,7 +12,7 @@ module Network.Flubber.Plugins.Internal
 
 import Conduit (ConduitT)
 import Control.Concurrent.STM.TBMChan (TBMChan)
-import Control.Concurrent.MVar (MVar)
+import Control.Concurrent.STM.TMVar (TMVar)
 import Control.Lens (Prism', makeLenses)
 import Data.Text (Text)
 import Network.Flubber.Config (PluginConfig)
@@ -69,7 +69,7 @@ class Monad m => MonadPlugin m where
 data Plugin = MkPlugin 
   { _pluginInitInfo :: InitInfo
   , _pluginProcess :: Process Handle Handle ()
-  , _pluginRequests :: TBMChan (RequestBody, MVar ResponseBody)
+  , _pluginRequests :: TBMChan (RequestBody, TMVar ResponseBody)
   , _pluginUpdates :: TBMChan Update
   }
 

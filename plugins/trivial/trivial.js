@@ -32,6 +32,9 @@ send({
 stdin.on("data", request => {
   console.error("request:", request);
 });
+stdin.on("end", () => {
+  process.exit(0);
+});
 
 const startTime = time();
 setInterval(() => {
