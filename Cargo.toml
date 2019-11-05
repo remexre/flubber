@@ -1,6 +1,8 @@
 [workspace]
 members = [
+	"components/flubber-plugin",
 	"components/flubber-plugin-proto",
+	"components/flubber-plugin-signal",
 	"components/flubber-server",
 	"components/flubber-server-plugin"
 ]

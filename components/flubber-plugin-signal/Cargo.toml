@@ -1,0 +1,18 @@
+[package]
+authors = ["Nathan Ringo <remexre@gmail.com>"]
+edition = "2018"
+license = "Apache-2.0/MIT"
+name = "flubber-plugin-signal"
+version = "0.1.0"
+
+[dependencies]
+flubber-plugin = { path = "../flubber-plugin" }
+
+anyhow = "1.0.19"
+femme = "1.3.0"
+libsignal-protocol = "0.1.0"
+log = "0.4.8"
+paw = "1.0.0"
+structopt = { version = "0.3.3", features = ["paw"] }
+
+tokio = "0.2.0-alpha.2"
