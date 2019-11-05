@@ -1,5 +1,17 @@
 //! The protocol between the server and plugins.
 //!
+//! ## Example Session
+//!
+//! ```json
+//! P: {"plugin_name": "Example", "plugin_version": [0, 0, 1], "protocol_version": [0, 1, 0]}
+//! S: {"sequence_number": 0, "body": {"type": "RoomLookup", "value": "#general"}}
+//! P: {"sequence_number": 0, "body": {"type": "RoomID", "value": "#general"}}
+//! S: {"sequence_number": 1, "body": {"type": "RoomJoin", "value": "#general"}}
+//! P: {"sequence_number": 1, "body": {"type": "Success", "value": null}}
+//! S: {"sequence_number": 2, "body": {"type": "MessageSend", "value": {"recipient": "#general", "attachments": [], "content": {"type": "Text", "value: "Hello, world!"}, "extra": null}}}
+//! P: {"sequence_number": 2, "body": {"type": "MessageID", "value": "test"}}
+//! ```
+//!
 //! TODO:
 //! - Work out how emotes should work
 //!   - EmoteID? Store emotes by hash?

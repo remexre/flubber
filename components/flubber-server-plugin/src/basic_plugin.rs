@@ -28,7 +28,7 @@ pub enum PluginError {
     Io(Arc<std::io::Error>),
 
     /// The plugin was terminated for a protocol violation.
-    #[display(fmt = "The plugin violated the protocol.")]
+    #[display(fmt = "The plugin violated the protocol: {}", _0)]
     ProtocolViolation(Arc<anyhow::Error>),
 
     /// The plugin is shutting down.
@@ -97,6 +97,7 @@ impl BasicPlugin {
             .context("Invalid InitInfo")
             .map_err(Arc::new)
             .map_err(PluginError::ProtocolViolation)?;
+        log::debug!("Got InitInfo: {:?}", init_info);
 
         // Small buffer size -> maximum backpressure.
         let (req_sender, req_recver) = mpsc::channel(1);
@@ -187,6 +188,16 @@ impl Stream for BasicPlugin {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         loop {
             'incoming: while !self.shutting_down {
+                // Flush the child.
+                match Sink::poll_flush(Pin::new(&mut self.inner), cx) {
+                    Poll::Ready(Ok(())) => {}
+                    Poll::Ready(Err(err)) => {
+                        self.on_either_error(err);
+                        break 'incoming;
+                    }
+                    Poll::Pending => break 'incoming,
+                }
+
                 // Try to get another request to send.
                 let req = match self.queued_req.take() {
                     Some(req) => req,

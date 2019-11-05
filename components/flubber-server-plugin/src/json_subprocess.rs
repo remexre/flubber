@@ -61,7 +61,9 @@ impl Sink<Value> for JsonSubprocess {
 
     fn start_send(mut self: Pin<&mut Self>, item: Value) -> Result<(), Self::Error> {
         assert!(self.stdin_buf.is_empty());
-        self.stdin_buf = item.to_string().into();
+        let mut s = item.to_string();
+        s.push('\n');
+        self.stdin_buf = s.into();
         Ok(())
     }
 
@@ -85,7 +87,16 @@ impl Sink<Value> for JsonSubprocess {
         }
 
         drop(replace(&mut self.stdin_buf, buf));
-        out
+
+        if let Poll::Ready(Ok(())) = out {
+            match AsyncWrite::poll_flush(Pin::new(&mut self.stdin), cx) {
+                Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
+                Poll::Ready(Err(err)) => Poll::Ready(Err(Either::Left(err))),
+                Poll::Pending => Poll::Pending,
+            }
+        } else {
+            out
+        }
     }
 
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
