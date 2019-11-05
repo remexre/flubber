@@ -1,0 +1,15 @@
+[package]
+authors = ["Nathan Ringo <remexre@gmail.com>"]
+edition = "2018"
+license = "Apache-2.0/MIT"
+name = "flubber-plugin-proto"
+version = "0.1.0"
+
+[dependencies]
+base64 = "0.11.0"
+chrono = "0.4.9"
+mime = "0.3.14"
+serde = "1.0.102"
+serde_derive = "1.0.102"
+serde_json = "1.0.41"
+sval = { version = "0.4.7", features = ["derive", "serde"] }
