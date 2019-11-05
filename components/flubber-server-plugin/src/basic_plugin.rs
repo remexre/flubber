@@ -130,7 +130,7 @@ impl BasicPlugin {
         loop {
             let n = self.next_sequence_number;
             self.next_sequence_number = n.wrapping_add(1);
-            if self.channels.contains_key(&n) {
+            if !self.channels.contains_key(&n) {
                 break n;
             } else {
                 warn!(
