@@ -15,4 +15,4 @@ log = "0.4.8"
 paw = "1.0.0"
 structopt = { version = "0.3.3", features = ["paw"] }
 
-tokio = "0.2.0-alpha.2"
+tokio = "0.2.0-alpha.6"

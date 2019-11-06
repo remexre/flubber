@@ -8,9 +8,9 @@ use std::{
 };
 use tokio::{
     codec::{FramedRead, FramedWrite},
+    net::process::{Child, ChildStdin, ChildStdout, Command},
     prelude::*,
 };
-use tokio_process::{Child, ChildStdin, ChildStdout, Command};
 
 /// The lowest-level wrapper for a plugin. Just a subprocess with JSON serialization and
 /// deserialization over stdin/stdout.
