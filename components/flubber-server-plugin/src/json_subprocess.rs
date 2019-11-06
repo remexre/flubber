@@ -1,34 +1,33 @@
-use bytes::{Bytes, BytesMut};
+use bytes::Bytes;
 use either::Either;
-use serde_json::{de::SliceRead, StreamDeserializer, Value};
+use flubber_utils::read_jsons;
+use serde_json::Value;
 use std::{
     ffi::OsStr,
-    fmt::Debug,
     mem::replace,
     pin::Pin,
     process::Stdio,
     task::{Context, Poll},
 };
 use tokio::prelude::*;
-use tokio_process::{Child, ChildStdin, ChildStdout, Command};
+use tokio_process::{Child, ChildStdin, Command};
 
 /// The lowest-level wrapper for a plugin. Just a subprocess with JSON serialization and
 /// deserialization over stdin/stdout.
-#[derive(Debug)]
+#[derive(derivative::Derivative)]
+#[derivative(Debug)]
 pub struct JsonSubprocess {
     child: Child,
     stdin: ChildStdin,
     stdin_buf: Bytes,
-    stdout: ChildStdout,
-    stdout_buf: BytesMut,
+    // TODO: existential
+    #[derivative(Debug = "ignore")]
+    stdout: Pin<
+        Box<dyn Stream<Item = Result<Value, Either<std::io::Error, serde_json::Error>>> + Send>,
+    >,
 }
 
 impl JsonSubprocess {
-    /// The number of bytes to try reading from the subprocess at once.
-    ///
-    /// Someday, tuning this might make sense, but I doubt it.
-    const STDOUT_BUF_SIZE: usize = 4096;
-
     /// Creates a new `JsonSubprocess`.
     pub fn new<Arg: AsRef<OsStr>, Args: IntoIterator<Item = Arg>, Cmd: AsRef<OsStr>>(
         cmd: Cmd,
@@ -46,12 +45,12 @@ impl JsonSubprocess {
             child,
             stdin,
             stdin_buf: Bytes::new(),
-            stdout,
-            stdout_buf: BytesMut::new(),
+            stdout: Box::pin(read_jsons(stdout)),
         })
     }
 }
 
+// TODO: Kill/combinatorify this.
 impl Sink<Value> for JsonSubprocess {
     type Error = Either<std::io::Error, serde_json::Error>;
 
@@ -109,33 +108,6 @@ impl Stream for JsonSubprocess {
     type Item = Result<Value, Either<std::io::Error, serde_json::Error>>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        // TODO: What's the right thing to do here, panic-wise? Poisoning?
-        let mut buf = replace(&mut self.stdout_buf, BytesMut::new());
-
-        let out = loop {
-            // Try to parse out a value.
-            let mut des = StreamDeserializer::new(SliceRead::new(&buf));
-            match des.next() {
-                Some(Ok(value)) => {
-                    let n = des.byte_offset();
-                    buf.advance(n);
-                    break Poll::Ready(Some(Ok(value)));
-                }
-                Some(Err(err)) if err.is_eof() => {}
-                None => {}
-                Some(Err(err)) => break Poll::Ready(Some(Err(Either::Right(err)))),
-            }
-
-            // Get more data for the buffer.
-            buf.reserve(Self::STDOUT_BUF_SIZE);
-            match AsyncRead::poll_read_buf(Pin::new(&mut self.stdout), cx, &mut buf) {
-                Poll::Ready(Ok(_)) => { /* poll_read_buf advances the buffer */ }
-                Poll::Ready(Err(err)) => break Poll::Ready(Some(Err(Either::Left(err)))),
-                Poll::Pending => break Poll::Pending,
-            }
-        };
-
-        drop(replace(&mut self.stdout_buf, buf));
-        out
+        Stream::poll_next(self.stdout.as_mut(), cx)
     }
 }

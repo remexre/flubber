@@ -21,7 +21,7 @@
     unconditional_recursion,
     // unions_with_drop_fields,
     unsafe_code,
-    // unused, TODO
+    unused,
     unused_allocation,
     unused_comparisons,
     unused_extern_crates,
@@ -38,21 +38,19 @@ use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Deserializer;
 use tokio::{prelude::*, stream::unfold};
 
-/// Writes a value as JSON from an `AsyncRead`.
+/// Reads a value as JSON from an `AsyncRead`.
 pub fn read_jsons<T: DeserializeOwned, R: 'static + AsyncRead + Unpin>(
-    mut r: R,
+    r: R,
 ) -> impl Stream<Item = Result<T, Either<std::io::Error, serde_json::Error>>> {
-    unfold(BytesMut::new(), move |mut buf| {
+    unfold((BytesMut::new(), r), move |(mut buf, mut r)| {
         async {
             let mut chunk = [0u8; 4096];
             let result = loop {
                 // Try to read.
-                /* TODO
                 match r.read(&mut chunk).await {
                     Ok(n) => buf.extend_from_slice(&chunk[..n]),
                     Err(err) => break Err(Either::Left(err)),
                 }
-                */
 
                 // Try to parse.
                 let mut des = Deserializer::from_slice(&buf).into_iter::<T>();
@@ -66,7 +64,7 @@ pub fn read_jsons<T: DeserializeOwned, R: 'static + AsyncRead + Unpin>(
                     None => {}
                 }
             };
-            Some((result, buf))
+            Some((result, (buf, r)))
         }
     })
 }
