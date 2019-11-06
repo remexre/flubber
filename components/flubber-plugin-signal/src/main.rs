@@ -1,5 +1,5 @@
-use anyhow::Result;
-use flubber_plugin::Parent;
+use flubber_plugin::sync::start_plugin;
+use libsignal_protocol::{crypto::DefaultCrypto, Context};
 use log::info;
 
 #[derive(Debug, structopt::StructOpt)]
@@ -14,7 +14,7 @@ struct Args {
 }
 
 #[paw::main]
-fn main(args: Args) -> Result<()> {
+fn main(args: Args) {
     if !args.quiet {
         use log::LevelFilter;
         femme::start(match args.verbosity {
@@ -26,17 +26,12 @@ fn main(args: Args) -> Result<()> {
         .unwrap();
     }
 
-    let runtime = tokio::runtime::Runtime::new()?;
-    info!("=== before runtime ===");
-    runtime.block_on(async {
-        let parent = Parent::new(
-            env!("CARGO_PKG_NAME").to_string(),
-            env!("CARGO_PKG_VERSION_MAJOR").parse().unwrap(),
-            env!("CARGO_PKG_VERSION_MINOR").parse().unwrap(),
-            env!("CARGO_PKG_VERSION_PATCH").parse().unwrap(),
-        )
-        .await?;
+    let (reqs, updates) = start_plugin(
+        env!("CARGO_PKG_NAME").to_string(),
+        env!("CARGO_PKG_VERSION_MAJOR").parse().unwrap(),
+        env!("CARGO_PKG_VERSION_MINOR").parse().unwrap(),
+        env!("CARGO_PKG_VERSION_PATCH").parse().unwrap(),
+    );
 
-        Ok(())
-    })
+    let ctx = Context::new(DefaultCrypto).unwrap();
 }
