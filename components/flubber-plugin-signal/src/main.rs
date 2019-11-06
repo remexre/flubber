@@ -29,8 +29,13 @@ fn main(args: Args) -> Result<()> {
     let runtime = tokio::runtime::Runtime::new()?;
     info!("=== before runtime ===");
     runtime.block_on(async {
-        let parent = Parent::new_from_cargo_toml().await?;
-        info!("args = {:?}", args);
+        let parent = Parent::new(
+            env!("CARGO_PKG_NAME").to_string(),
+            env!("CARGO_PKG_VERSION_MAJOR").parse().unwrap(),
+            env!("CARGO_PKG_VERSION_MINOR").parse().unwrap(),
+            env!("CARGO_PKG_VERSION_PATCH").parse().unwrap(),
+        )
+        .await?;
 
         Ok(())
     })
