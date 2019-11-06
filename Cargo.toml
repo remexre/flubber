@@ -4,5 +4,6 @@ members = [
 	"components/flubber-plugin-proto",
 	"components/flubber-plugin-signal",
 	"components/flubber-server",
+	"components/flubber-server-db",
 	"components/flubber-server-plugin"
 ]
