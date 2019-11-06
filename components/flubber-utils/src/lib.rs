@@ -33,49 +33,43 @@
 )]
 
 use bytes::BytesMut;
-use either::Either;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Deserializer;
-use tokio::{prelude::*, stream::unfold};
+use std::marker::PhantomData;
+use tokio::codec::{Decoder, Encoder};
 
-/// Reads a value as JSON from an `AsyncRead`.
-pub fn read_jsons<T: DeserializeOwned, R: 'static + AsyncRead + Unpin>(
-    r: R,
-) -> impl Stream<Item = Result<T, Either<std::io::Error, serde_json::Error>>> {
-    unfold((BytesMut::new(), r), move |(mut buf, mut r)| {
-        async {
-            let mut chunk = [0u8; 4096];
-            let result = loop {
-                // Try to read.
-                match r.read(&mut chunk).await {
-                    Ok(n) => buf.extend_from_slice(&chunk[..n]),
-                    Err(err) => break Err(Either::Left(err)),
-                }
+/// An encoder and decoder for JSON.
+#[derive(Debug, Default)]
+pub struct JsonCodec<T>(pub PhantomData<T>);
 
-                // Try to parse.
-                let mut des = Deserializer::from_slice(&buf).into_iter::<T>();
-                match des.next() {
-                    Some(Ok(value)) => {
-                        let n = des.byte_offset();
-                        buf.advance(n);
-                        break Ok(value);
-                    }
-                    Some(Err(err)) => break Err(Either::Right(err)),
-                    None => {}
+impl<T: DeserializeOwned> Decoder for JsonCodec<T> {
+    type Item = T;
+    type Error = std::io::Error;
+    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        let mut des = Deserializer::from_slice(&src).into_iter::<T>();
+        match des.next() {
+            Some(Ok(value)) => {
+                let n = des.byte_offset();
+                src.advance(n);
+                Ok(Some(value))
+            }
+            Some(Err(err)) => {
+                if err.is_eof() {
+                    Ok(None)
+                } else {
+                    Err(err.into())
                 }
-            };
-            Some((result, (buf, r)))
+            }
+            None => Ok(None),
         }
-    })
+    }
 }
 
-/// Writes the given value as JSON to an `AsyncWrite`, with a trailing newline.
-pub async fn write_json<T: Serialize, W: AsyncWrite + Unpin>(
-    w: &mut W,
-    value: &T,
-) -> Result<(), Either<std::io::Error, serde_json::Error>> {
-    let bytes = serde_json::to_vec(value).map_err(Either::Right)?;
-    w.write_all(&bytes).await.map_err(Either::Left)?;
-    w.flush().await.map_err(Either::Left)?;
-    Ok(())
+impl<T: Serialize> Encoder for JsonCodec<T> {
+    type Item = T;
+    type Error = std::io::Error;
+    fn encode(&mut self, item: Self::Item, dst: &mut BytesMut) -> Result<(), Self::Error> {
+        dst.extend_from_slice(&serde_json::to_vec(&item)?);
+        Ok(())
+    }
 }

@@ -83,10 +83,7 @@ impl BasicPlugin {
 
         let init_info = match inner.next().await {
             Some(Ok(val)) => val,
-            Some(Err(Either::Left(err))) => return Err(PluginError::Io(Arc::new(err))),
-            Some(Err(Either::Right(err))) => {
-                return Err(PluginError::ProtocolViolation(Arc::new(err.into())));
-            }
+            Some(Err(err)) => return Err(PluginError::Io(Arc::new(err))),
             None => {
                 return Err(PluginError::ProtocolViolation(Arc::new(anyhow!(
                     "Plugin exited before it sent the InitInfo"
@@ -150,14 +147,6 @@ impl BasicPlugin {
         }
     }
 
-    /// Fails all requests with a `PluginError`.
-    fn on_either_error(&mut self, err: Either<std::io::Error, serde_json::Error>) {
-        self.on_error(match err {
-            Either::Left(err) => PluginError::Io(Arc::new(err)),
-            Either::Right(err) => PluginError::ProtocolViolation(Arc::new(err.into())),
-        })
-    }
-
     /// Responds to a request, if possible.
     fn on_response(&mut self, response: Response) {
         match self.channels.remove(&response.sequence_number) {
@@ -192,7 +181,7 @@ impl Stream for BasicPlugin {
                 match Sink::poll_flush(Pin::new(&mut self.inner), cx) {
                     Poll::Ready(Ok(())) => {}
                     Poll::Ready(Err(err)) => {
-                        self.on_either_error(err);
+                        self.on_error(PluginError::Io(Arc::new(err)));
                         break 'incoming;
                     }
                     Poll::Pending => break 'incoming,
@@ -221,7 +210,7 @@ impl Stream for BasicPlugin {
                 match Sink::poll_ready(Pin::new(&mut self.inner), cx) {
                     Poll::Ready(Ok(())) => {}
                     Poll::Ready(Err(err)) => {
-                        self.on_either_error(err);
+                        self.on_error(PluginError::Io(Arc::new(err)));
                         break 'incoming;
                     }
                     Poll::Pending => {
@@ -241,7 +230,7 @@ impl Stream for BasicPlugin {
                 match Sink::start_send(Pin::new(&mut self.inner), value) {
                     Ok(()) => {}
                     Err(err) => {
-                        self.on_either_error(err);
+                        self.on_error(PluginError::Io(Arc::new(err)));
                         break 'incoming;
                     }
                 }
@@ -261,7 +250,7 @@ impl Stream for BasicPlugin {
                     }
                 },
                 Poll::Ready(Some(Err(err))) => {
-                    self.on_either_error(err);
+                    self.on_error(PluginError::Io(Arc::new(err)));
                     break Poll::Ready(None);
                 }
                 Poll::Ready(None) => break Poll::Ready(None),

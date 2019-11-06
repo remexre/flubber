@@ -1,16 +1,16 @@
-use bytes::Bytes;
-use either::Either;
-use flubber_utils::read_jsons;
+use flubber_utils::JsonCodec;
 use serde_json::Value;
 use std::{
     ffi::OsStr,
-    mem::replace,
     pin::Pin,
     process::Stdio,
     task::{Context, Poll},
 };
-use tokio::prelude::*;
-use tokio_process::{Child, ChildStdin, Command};
+use tokio::{
+    codec::{FramedRead, FramedWrite},
+    prelude::*,
+};
+use tokio_process::{Child, ChildStdin, ChildStdout, Command};
 
 /// The lowest-level wrapper for a plugin. Just a subprocess with JSON serialization and
 /// deserialization over stdin/stdout.
@@ -18,13 +18,8 @@ use tokio_process::{Child, ChildStdin, Command};
 #[derivative(Debug)]
 pub struct JsonSubprocess {
     child: Child,
-    stdin: ChildStdin,
-    stdin_buf: Bytes,
-    // TODO: existential
-    #[derivative(Debug = "ignore")]
-    stdout: Pin<
-        Box<dyn Stream<Item = Result<Value, Either<std::io::Error, serde_json::Error>>> + Send>,
-    >,
+    stdin: FramedWrite<ChildStdin, JsonCodec<Value>>,
+    stdout: FramedRead<ChildStdout, JsonCodec<Value>>,
 }
 
 impl JsonSubprocess {
@@ -43,71 +38,36 @@ impl JsonSubprocess {
         let stdout = child.stdout().take().unwrap();
         Ok(JsonSubprocess {
             child,
-            stdin,
-            stdin_buf: Bytes::new(),
-            stdout: Box::pin(read_jsons(stdout)),
+            stdin: FramedWrite::new(stdin, JsonCodec::default()),
+            stdout: FramedRead::new(stdout, JsonCodec::default()),
         })
     }
 }
 
-// TODO: Kill/combinatorify this.
 impl Sink<Value> for JsonSubprocess {
-    type Error = Either<std::io::Error, serde_json::Error>;
+    type Error = std::io::Error;
 
-    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
-        self.poll_flush(cx)
+    fn poll_ready(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
+        Sink::poll_ready(Pin::new(&mut self.stdin), cx)
     }
 
     fn start_send(mut self: Pin<&mut Self>, item: Value) -> Result<(), Self::Error> {
-        assert!(self.stdin_buf.is_empty());
-        let mut s = item.to_string();
-        s.push('\n');
-        self.stdin_buf = s.into();
-        Ok(())
+        Sink::start_send(Pin::new(&mut self.stdin), item)
     }
 
     fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
-        // TODO: What's the right thing to do here, panic-wise? Poisoning?
-        let mut buf = replace(&mut self.stdin_buf, Bytes::new());
-        let mut out = Poll::Ready(Ok(()));
-
-        while !buf.is_empty() {
-            match AsyncWrite::poll_write(Pin::new(&mut self.stdin), cx, &buf) {
-                Poll::Ready(Ok(n)) => buf.advance(n),
-                Poll::Ready(Err(err)) => {
-                    out = Poll::Ready(Err(Either::Left(err)));
-                    break;
-                }
-                Poll::Pending => {
-                    out = Poll::Pending;
-                    break;
-                }
-            }
-        }
-
-        drop(replace(&mut self.stdin_buf, buf));
-
-        if let Poll::Ready(Ok(())) = out {
-            match AsyncWrite::poll_flush(Pin::new(&mut self.stdin), cx) {
-                Poll::Ready(Ok(())) => Poll::Ready(Ok(())),
-                Poll::Ready(Err(err)) => Poll::Ready(Err(Either::Left(err))),
-                Poll::Pending => Poll::Pending,
-            }
-        } else {
-            out
-        }
+        Sink::poll_flush(Pin::new(&mut self.stdin), cx)
     }
 
     fn poll_close(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
-        Sink::poll_flush(Pin::new(&mut self), cx)
-            .map(|r| r.and_then(|()| self.child.kill().map_err(Either::Left)))
+        Sink::poll_close(Pin::new(&mut self.stdin), cx)
     }
 }
 
 impl Stream for JsonSubprocess {
-    type Item = Result<Value, Either<std::io::Error, serde_json::Error>>;
+    type Item = Result<Value, std::io::Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        Stream::poll_next(self.stdout.as_mut(), cx)
+        Stream::poll_next(Pin::new(&mut self.stdout), cx)
     }
 }
