@@ -7,18 +7,15 @@ version = "0.1.0"
 
 [dependencies]
 flubber-plugin-proto = { path = "../flubber-plugin-proto" }
+flubber-utils = { path = "../flubber-utils" }
 
 anyhow = "1.0.18"
-# bytes = "0.4.12"
 chrono = "0.4.9"
-# derive_more = "0.15.0"
-# either = "1.5.3"
 log = "0.4.8"
 rusqlite = "0.20.0"
-# serde = "1.0.102"
-# serde_derive = "1.0.102"
 # serde_json = "1.0.41"
 
 tokio = "0.2.0-alpha.2"
-# tokio-process = "0.3.0-alpha.2"
-# tokio-timer = "0.3.0-alpha.2"
+
+[dev-dependencies]
+femme = "1.3.0"

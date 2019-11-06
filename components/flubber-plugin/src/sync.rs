@@ -15,7 +15,12 @@ use tokio::{
 };
 
 /// Starts a connection to a server, which should act as the parent process.
-pub fn start_plugin(name: String, major: u32, minor: u32, patch: u32) -> (Receiver<ReqRes>, UpdateSender) {
+pub fn start_plugin(
+    name: String,
+    major: u32,
+    minor: u32,
+    patch: u32,
+) -> (Receiver<ReqRes>, UpdateSender) {
     let (mut send, recv) = channel(8);
     println!(
         "{}",

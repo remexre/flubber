@@ -470,6 +470,7 @@ name = "flubber-server"
 version = "0.1.0"
 dependencies = [
  "flubber-plugin-proto 0.1.0",
+ "flubber-server-db 0.1.0",
  "flubber-server-plugin 0.1.0",
 ]
 
@@ -479,7 +480,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow 1.0.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "femme 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "flubber-plugin-proto 0.1.0",
+ "flubber-utils 0.1.0",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusqlite 0.20.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio 0.2.0-alpha.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -500,6 +503,17 @@ dependencies = [
  "tokio 0.2.0-alpha.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-process 0.3.0-alpha.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-timer 0.3.0-alpha.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "flubber-utils"
+version = "0.1.0"
+dependencies = [
+ "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "either 1.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.41 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio 0.2.0-alpha.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

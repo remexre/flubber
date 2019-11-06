@@ -5,5 +5,6 @@ members = [
 	"components/flubber-plugin-signal",
 	"components/flubber-server",
 	"components/flubber-server-db",
-	"components/flubber-server-plugin"
+	"components/flubber-server-plugin",
+	"components/flubber-utils"
 ]

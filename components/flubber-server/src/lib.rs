@@ -32,4 +32,5 @@
     while_true
 )]
 
+pub use flubber_server_db::Database;
 pub use flubber_server_plugin::Plugin;

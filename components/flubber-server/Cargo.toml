@@ -7,6 +7,7 @@ version = "0.1.0"
 
 [dependencies]
 flubber-plugin-proto = { path = "../flubber-plugin-proto" }
+flubber-server-db = { path = "../flubber-server-db" }
 flubber-server-plugin = { path = "../flubber-server-plugin" }
 
 # anyhow = "1.0.18"

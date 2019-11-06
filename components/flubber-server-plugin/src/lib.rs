@@ -50,7 +50,7 @@ use std::{
 };
 use tokio::prelude::*;
 
-/// The highest-level interface to a plugin. This is probably what you want.
+/// The highest-level interface to a plugin.
 ///
 /// - On plugin crash or protocol violation, restarts the plugin with exponential backoff. The
 /// exponential backoff time is reset once an update is received, or a request is responded to with

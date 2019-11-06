@@ -1,0 +1,14 @@
+[package]
+authors = ["Nathan Ringo <remexre@gmail.com>"]
+edition = "2018"
+license = "Apache-2.0/MIT"
+name = "flubber-utils"
+version = "0.1.0"
+
+[dependencies]
+bytes = "0.4.12"
+either = "1.5.3"
+serde = "1.0.102"
+serde_json = "1.0.41"
+
+tokio = "0.2.0-alpha.2"
