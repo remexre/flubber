@@ -13,7 +13,8 @@ async fn main() -> Result<()> {
     let mut db = Database::open(path)?;
     for plugin in db.list_plugins().await? {
         println!("{}", plugin);
-        for room in db.list_rooms(plugin).await? {
+        for id in db.list_rooms(plugin.clone()).await? {
+            let room = db.get_room(plugin.clone(), id).await?.unwrap();
             println!("- {}", room.name);
         }
     }

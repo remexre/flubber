@@ -62,7 +62,7 @@ use std::{
 use sval::Value;
 
 /// Plugin sends this to the server when it starts.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct InitInfo {
     /// The name of the plugin.
@@ -76,27 +76,27 @@ pub struct InitInfo {
 }
 
 /// The version of the plugin or protocol.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct Version(pub u32, pub u32, pub u32);
 
 /// A name for a message on a service. This should uniquely identify the message, even if it gets edited.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct MessageID(pub String);
 
 /// A name for a room on a service. This should uniquely identify a room through renames if possible.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct RoomID(pub String);
 
 /// A name for a user on a service. This should uniquely identify a user through renames if possible.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct UserID(pub String);
 
 /// A RoomID or UserID.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Value)]
 #[serde(untagged)]
 #[sval(derive_from = "serde")]
 pub enum RoomIDOrUserID {
@@ -108,7 +108,7 @@ pub enum RoomIDOrUserID {
 }
 
 /// A message sent from a user to another user or a room.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct Message {
     /// The ID of the message.
@@ -140,7 +140,7 @@ pub struct Message {
 }
 
 /// A message sent from a user to another user or a room.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct NewMessage {
     /// The Room to send to, or the User to DM.
@@ -158,7 +158,7 @@ pub struct NewMessage {
 }
 
 /// MIME-typed data attached to a message.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct MessageAttachment {
     /// The mime type of a message.
@@ -171,7 +171,7 @@ pub struct MessageAttachment {
 }
 
 /// The contents of a message.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Value)]
 #[serde(tag = "type", content = "value")]
 #[sval(derive_from = "serde")]
 pub enum MessageContent {
@@ -212,7 +212,7 @@ pub enum MessageContent {
 }
 
 /// The information corresponding to a room.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct Room {
     /// The ID of the room.
@@ -229,7 +229,7 @@ pub struct Room {
 }
 
 /// A request to create a new room with the given properties.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct NewRoom {
     /// The room which is the parent of this room.
@@ -243,7 +243,7 @@ pub struct NewRoom {
 }
 
 /// Information sent from the plugin to the server.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Value)]
 #[serde(tag = "type", content = "value")]
 #[sval(derive_from = "serde")]
 pub enum Update {
@@ -261,7 +261,7 @@ pub enum Update {
 }
 
 /// A request as sent to the plugin.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct Request {
     /// The sequence number of the request. Two requests with the same sequence number may not be
@@ -273,7 +273,7 @@ pub struct Request {
 }
 
 /// A response as sent from the plugin.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct Response {
     /// The sequence number, which must match the sequence number in the request.
@@ -284,7 +284,7 @@ pub struct Response {
 }
 
 /// A Response or Update.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Value)]
 #[serde(untagged)]
 #[sval(derive_from = "serde")]
 pub enum ResponseOrUpdate {
@@ -296,7 +296,7 @@ pub enum ResponseOrUpdate {
 }
 
 /// A request made to a server.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Value)]
 #[serde(tag = "type", content = "value")]
 #[sval(derive_from = "serde")]
 pub enum RequestBody {
@@ -342,7 +342,7 @@ pub enum RequestBody {
 }
 
 /// The response to a request.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Value)]
 #[serde(tag = "type", content = "value")]
 #[sval(derive_from = "serde")]
 pub enum ResponseBody {
@@ -366,7 +366,7 @@ pub enum ResponseBody {
 }
 
 /// An error with a request.
-#[derive(Clone, Debug, Deserialize, Serialize, Value)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct ResponseError {
     /// An error message.
