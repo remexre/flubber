@@ -35,12 +35,26 @@
 use bytes::BytesMut;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Deserializer;
-use std::marker::PhantomData;
+use std::{
+    fmt::{Debug, Formatter, Result as FmtResult},
+    marker::PhantomData,
+};
 use tokio::codec::{Decoder, Encoder};
 
 /// An encoder and decoder for JSON.
-#[derive(Debug, Default)]
 pub struct JsonCodec<T>(pub PhantomData<T>);
+
+impl<T> Debug for JsonCodec<T> {
+    fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
+        fmt.write_str("JsonCodec")
+    }
+}
+
+impl<T> Default for JsonCodec<T> {
+    fn default() -> JsonCodec<T> {
+        JsonCodec(PhantomData)
+    }
+}
 
 impl<T: DeserializeOwned> Decoder for JsonCodec<T> {
     type Item = T;

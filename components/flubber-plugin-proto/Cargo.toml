@@ -3,7 +3,7 @@ authors = ["Nathan Ringo <remexre@gmail.com>"]
 edition = "2018"
 license = "Apache-2.0/MIT"
 name = "flubber-plugin-proto"
-version = "0.1.0"
+version = "0.1.0-alpha"
 
 [dependencies]
 base64 = "0.11.0"
