@@ -6,10 +6,10 @@ name = "flubber-server"
 version = "0.1.0-alpha"
 
 [dependencies]
-flubber-plugin-proto = { path = "../flubber-plugin-proto" }
+flubber-backend-proto = { path = "../flubber-backend-proto" }
 flubber-server-config = { path = "../flubber-server-config" }
 flubber-server-db = { path = "../flubber-server-db" }
-flubber-server-plugin = { path = "../flubber-server-plugin" }
+flubber-server-backend = { path = "../flubber-server-backend" }
 flubber-server-web = { path = "../flubber-server-web" }
 
 anyhow = "1.0.19"

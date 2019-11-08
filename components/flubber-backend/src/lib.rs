@@ -1,4 +1,4 @@
-//! A utility library for more easily implementing plugins.
+//! A utility library for more easily implementing backends.
 #![deny(
     bad_style,
     bare_trait_objects,
@@ -33,7 +33,7 @@
 )]
 
 use crate::proto::{InitInfo, Request, RequestBody, Response, ResponseBody, Update, Version};
-pub use flubber_plugin_proto as proto;
+pub use flubber_backend_proto as proto;
 use flubber_utils::JsonCodec;
 use futures_util::{
     future::{ready, Either, Ready},
@@ -52,8 +52,8 @@ use tokio::{
 };
 use tower::{util::CallAll, Service};
 
-/// Runs a plugin.
-pub fn run_plugin<S, U>(
+/// Runs a backend.
+pub fn run_backend<S, U>(
     name: String,
     major: u32,
     minor: u32,
@@ -69,8 +69,8 @@ where
     let service = Wrapper(service);
     once(ready(
         serde_json::to_value(InitInfo {
-            plugin_name: name,
-            plugin_version: Version(major, minor, patch),
+            backend_name: name,
+            backend_version: Version(major, minor, patch),
             protocol_version: Version(0, 1, 0),
         })
         .map_err(Into::into),

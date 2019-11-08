@@ -2,7 +2,7 @@ use super::JsonSubprocess;
 use anyhow::{anyhow, Context as _};
 use derive_more::Display;
 use either::Either;
-use flubber_plugin_proto::{
+use flubber_backend_proto::{
     InitInfo, Message, MessageID, NewMessage, NewRoom, Request, RequestBody, Response,
     ResponseBody, ResponseError, ResponseOrUpdate, Room, RoomID, Update,
 };
@@ -20,64 +20,64 @@ use tokio::{
     sync::{mpsc, oneshot},
 };
 
-/// An error due to a plugin misbehaving in some manner.
+/// An error due to a backend misbehaving in some manner.
 #[derive(Clone, Debug, Display)]
-pub enum PluginError {
+pub enum BackendError {
     /// An I/O error occurred.
-    #[display(fmt = "Got an I/O error when communicating with plugin: {}", _0)]
+    #[display(fmt = "Got an I/O error when communicating with backend: {}", _0)]
     Io(Arc<std::io::Error>),
 
-    /// The plugin was terminated for a protocol violation.
-    #[display(fmt = "The plugin violated the protocol: {}", _0)]
+    /// The backend was terminated for a protocol violation.
+    #[display(fmt = "The backend violated the protocol: {}", _0)]
     ProtocolViolation(Arc<anyhow::Error>),
 
-    /// The plugin is shutting down.
-    #[display(fmt = "The plugin is shutting down.")]
+    /// The backend is shutting down.
+    #[display(fmt = "The backend is shutting down.")]
     ShuttingDown,
 }
 
-impl Error for PluginError {
+impl Error for BackendError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
-            PluginError::Io(err) => Some(&**err),
-            PluginError::ProtocolViolation(err) => Some(&***err),
-            PluginError::ShuttingDown => None,
+            BackendError::Io(err) => Some(&**err),
+            BackendError::ProtocolViolation(err) => Some(&***err),
+            BackendError::ShuttingDown => None,
         }
     }
 }
 
-/// Slightly lower-level than (and used to implement) `Plugin`.
+/// Slightly lower-level than (and used to implement) `Backend`.
 ///
-/// - On plugin crash or protocol violation, the update stream ends.
-/// - On plugin crash or protocol violation, all outstanding requests, and all future requests fail
-/// with a `PluginError`.
+/// - On backend crash or protocol violation, the update stream ends.
+/// - On backend crash or protocol violation, all outstanding requests, and all future requests fail
+/// with a `BackendError`.
 /// - Response errors are returned as-is.
 #[derive(Debug)]
-pub struct BasicPlugin {
+pub struct BasicBackend {
     init_info: InitInfo,
     inner: JsonSubprocess,
     // TODO: Would another data structure be better?
-    channels: HashMap<u32, oneshot::Sender<Result<ResponseBody, PluginError>>>,
+    channels: HashMap<u32, oneshot::Sender<Result<ResponseBody, BackendError>>>,
     next_sequence_number: u32,
     queued_req: Option<Request>,
     req_sender: mpsc::Sender<(
         RequestBody,
-        oneshot::Sender<Result<ResponseBody, PluginError>>,
+        oneshot::Sender<Result<ResponseBody, BackendError>>,
     )>,
     req_recver: mpsc::Receiver<(
         RequestBody,
-        oneshot::Sender<Result<ResponseBody, PluginError>>,
+        oneshot::Sender<Result<ResponseBody, BackendError>>,
     )>,
     shutting_down: bool,
 }
 
-impl BasicPlugin {
-    /// Creates a new `BasicPlugin`.
+impl BasicBackend {
+    /// Creates a new `BasicBackend`.
     pub async fn new<Arg, Args, Cmd, Env, K, V>(
         cmd: Cmd,
         args: Args,
         env: Env,
-    ) -> Result<BasicPlugin, PluginError>
+    ) -> Result<BasicBackend, BackendError>
     where
         Arg: AsRef<OsStr>,
         Args: IntoIterator<Item = Arg>,
@@ -88,27 +88,27 @@ impl BasicPlugin {
     {
         let mut inner = JsonSubprocess::new(cmd, args, env)
             .map_err(Arc::new)
-            .map_err(PluginError::Io)?;
+            .map_err(BackendError::Io)?;
 
         let init_info = match inner.next().await {
             Some(Ok(val)) => val,
-            Some(Err(err)) => return Err(PluginError::Io(Arc::new(err))),
+            Some(Err(err)) => return Err(BackendError::Io(Arc::new(err))),
             None => {
-                return Err(PluginError::ProtocolViolation(Arc::new(anyhow!(
-                    "Plugin exited before it sent the InitInfo"
+                return Err(BackendError::ProtocolViolation(Arc::new(anyhow!(
+                    "Backend exited before it sent the InitInfo"
                 ))))
             }
         };
         let init_info = serde_json::from_value(init_info)
             .context("Invalid InitInfo")
             .map_err(Arc::new)
-            .map_err(PluginError::ProtocolViolation)?;
+            .map_err(BackendError::ProtocolViolation)?;
         log::debug!("Got InitInfo: {:?}", init_info);
 
         // Small buffer size -> maximum backpressure.
         let (req_sender, req_recver) = mpsc::channel(1);
 
-        Ok(BasicPlugin {
+        Ok(BasicBackend {
             init_info,
             inner,
             channels: HashMap::new(),
@@ -120,14 +120,14 @@ impl BasicPlugin {
         })
     }
 
-    /// Return the `InitInfo` of the plugin.
+    /// Return the `InitInfo` of the backend.
     pub fn init_info(&self) -> &InitInfo {
         &self.init_info
     }
 
-    /// Returns a `BasicPluginSender` for the plugin.
-    pub fn sender(&self) -> BasicPluginSender {
-        BasicPluginSender {
+    /// Returns a `BasicBackendSender` for the backend.
+    pub fn sender(&self) -> BasicBackendSender {
+        BasicBackendSender {
             sender: self.req_sender.clone(),
         }
     }
@@ -141,15 +141,15 @@ impl BasicPlugin {
                 break n;
             } else {
                 warn!(
-                    "Plugin ran out of sequence numbers -- not only are we likely using gigs of \
+                    "Backend ran out of sequence numbers -- not only are we likely using gigs of \
                      RAM, CPU performance is about to hit a cliff!"
                 );
             }
         }
     }
 
-    /// Fails all requests with a `PluginError`.
-    fn on_error(&mut self, err: PluginError) {
+    /// Fails all requests with a `BackendError`.
+    fn on_error(&mut self, err: BackendError) {
         self.shutting_down = true;
         for (_, ch) in self.channels.drain() {
             drop(ch.send(Err(err.clone())));
@@ -172,7 +172,7 @@ impl BasicPlugin {
             None => {
                 // TODO: Log the response.
                 warn!(
-                    "Got a response to failed request -- the plugin may be confused about \
+                    "Got a response to failed request -- the backend may be confused about \
                      sequence numbers?"
                 )
             }
@@ -180,7 +180,7 @@ impl BasicPlugin {
     }
 }
 
-impl Stream for BasicPlugin {
+impl Stream for BasicBackend {
     type Item = Update;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
@@ -190,7 +190,7 @@ impl Stream for BasicPlugin {
                 match Sink::poll_flush(Pin::new(&mut self.inner), cx) {
                     Poll::Ready(Ok(())) => {}
                     Poll::Ready(Err(err)) => {
-                        self.on_error(PluginError::Io(Arc::new(err)));
+                        self.on_error(BackendError::Io(Arc::new(err)));
                         break 'incoming;
                     }
                     Poll::Pending => break 'incoming,
@@ -209,7 +209,7 @@ impl Stream for BasicPlugin {
                             }
                         }
                         Poll::Ready(None) => {
-                            unreachable!("BasicPlugin was half-dropped or something?")
+                            unreachable!("BasicBackend was half-dropped or something?")
                         }
                         Poll::Pending => break 'incoming,
                     },
@@ -219,7 +219,7 @@ impl Stream for BasicPlugin {
                 match Sink::poll_ready(Pin::new(&mut self.inner), cx) {
                     Poll::Ready(Ok(())) => {}
                     Poll::Ready(Err(err)) => {
-                        self.on_error(PluginError::Io(Arc::new(err)));
+                        self.on_error(BackendError::Io(Arc::new(err)));
                         break 'incoming;
                     }
                     Poll::Pending => {
@@ -230,7 +230,7 @@ impl Stream for BasicPlugin {
                 let value = match serde_json::to_value(&req) {
                     Ok(value) => value,
                     Err(err) => {
-                        self.on_error(PluginError::ProtocolViolation(Arc::new(err.into())));
+                        self.on_error(BackendError::ProtocolViolation(Arc::new(err.into())));
                         break 'incoming;
                     }
                 };
@@ -239,7 +239,7 @@ impl Stream for BasicPlugin {
                 match Sink::start_send(Pin::new(&mut self.inner), value) {
                     Ok(()) => {}
                     Err(err) => {
-                        self.on_error(PluginError::Io(Arc::new(err)));
+                        self.on_error(BackendError::Io(Arc::new(err)));
                         break 'incoming;
                     }
                 }
@@ -248,18 +248,18 @@ impl Stream for BasicPlugin {
             // Remove obsoleted channels.
             self.channels.retain(|_, ch| !ch.is_closed());
 
-            // Try to read a value from the plugin.
+            // Try to read a value from the backend.
             match Stream::poll_next(Pin::new(&mut self.inner), cx) {
                 Poll::Ready(Some(Ok(value))) => match serde_json::from_value(value) {
                     Ok(ResponseOrUpdate::Response(response)) => self.on_response(response),
                     Ok(ResponseOrUpdate::Update(update)) => break Poll::Ready(Some(update)),
                     Err(err) => {
-                        self.on_error(PluginError::ProtocolViolation(Arc::new(err.into())));
+                        self.on_error(BackendError::ProtocolViolation(Arc::new(err.into())));
                         break Poll::Ready(None);
                     }
                 },
                 Poll::Ready(Some(Err(err))) => {
-                    self.on_error(PluginError::Io(Arc::new(err)));
+                    self.on_error(BackendError::Io(Arc::new(err)));
                     break Poll::Ready(None);
                 }
                 Poll::Ready(None) => break Poll::Ready(None),
@@ -269,13 +269,13 @@ impl Stream for BasicPlugin {
     }
 }
 
-/// A value that can issue requests to a `BasicPlugin`. Note that requests are not serviced unless
-/// the `BasicPlugin` is being polled on as a `Stream`.
+/// A value that can issue requests to a `BasicBackend`. Note that requests are not serviced unless
+/// the `BasicBackend` is being polled on as a `Stream`.
 #[derive(Clone, Debug)]
-pub struct BasicPluginSender {
+pub struct BasicBackendSender {
     sender: mpsc::Sender<(
         RequestBody,
-        oneshot::Sender<Result<ResponseBody, PluginError>>,
+        oneshot::Sender<Result<ResponseBody, BackendError>>,
     )>,
 }
 
@@ -286,7 +286,7 @@ macro_rules! request {
             match fut.await {
                 Ok($pat) => Ok(()),
                 Ok(ResponseBody::Error(err)) => Err(Either::Right(err)),
-                Ok(body) => Err(Either::Left(PluginError::ProtocolViolation(Arc::new(
+                Ok(body) => Err(Either::Left(BackendError::ProtocolViolation(Arc::new(
                     anyhow!("Invalid response: {:?}", body),
                 )))),
                 Err(err) => Err(Either::Left(err)),
@@ -300,7 +300,7 @@ macro_rules! request {
             match fut.await {
                 Ok($pat) => Ok($var),
                 Ok(ResponseBody::Error(err)) => Err(Either::Right(err)),
-                Ok(body) => Err(Either::Left(PluginError::ProtocolViolation(Arc::new(
+                Ok(body) => Err(Either::Left(BackendError::ProtocolViolation(Arc::new(
                     anyhow!("Invalid response: {:?}", body),
                 )))),
                 Err(err) => Err(Either::Left(err)),
@@ -309,18 +309,21 @@ macro_rules! request {
     }};
 }
 
-impl BasicPluginSender {
+impl BasicBackendSender {
     /// Makes a request, without doing anything with the response.
-    fn request(&self, req: RequestBody) -> impl Future<Output = Result<ResponseBody, PluginError>> {
+    fn request(
+        &self,
+        req: RequestBody,
+    ) -> impl Future<Output = Result<ResponseBody, BackendError>> {
         let (send, recv) = oneshot::channel();
         let mut sender = self.sender.clone();
         async move {
             if sender.send((req, send)).await.is_err() {
-                return Err(PluginError::ShuttingDown);
+                return Err(BackendError::ShuttingDown);
             }
             match recv.await {
                 Ok(r) => r,
-                Err(_) => Err(PluginError::ShuttingDown),
+                Err(_) => Err(BackendError::ShuttingDown),
             }
         }
     }
@@ -329,7 +332,7 @@ impl BasicPluginSender {
     pub fn message_get_before(
         &self,
         id: MessageID,
-    ) -> impl Future<Output = Result<(), Either<PluginError, ResponseError>>> {
+    ) -> impl Future<Output = Result<(), Either<BackendError, ResponseError>>> {
         request!(
             self,
             RequestBody::MessageGetBefore(id),
@@ -341,7 +344,7 @@ impl BasicPluginSender {
     pub fn message_get(
         &self,
         id: MessageID,
-    ) -> impl Future<Output = Result<Message, Either<PluginError, ResponseError>>> {
+    ) -> impl Future<Output = Result<Message, Either<BackendError, ResponseError>>> {
         request!(
             self,
             RequestBody::MessageGet(id),
@@ -354,7 +357,7 @@ impl BasicPluginSender {
     pub fn message_send(
         &self,
         msg: NewMessage,
-    ) -> impl Future<Output = Result<MessageID, Either<PluginError, ResponseError>>> {
+    ) -> impl Future<Output = Result<MessageID, Either<BackendError, ResponseError>>> {
         request!(
             self,
             RequestBody::MessageSend(msg),
@@ -367,7 +370,7 @@ impl BasicPluginSender {
     pub fn room_get(
         &self,
         id: RoomID,
-    ) -> impl Future<Output = Result<Room, Either<PluginError, ResponseError>>> {
+    ) -> impl Future<Output = Result<Room, Either<BackendError, ResponseError>>> {
         request!(
             self,
             RequestBody::RoomGet(id),
@@ -380,7 +383,7 @@ impl BasicPluginSender {
     pub fn room_create(
         &self,
         room: NewRoom,
-    ) -> impl Future<Output = Result<RoomID, Either<PluginError, ResponseError>>> {
+    ) -> impl Future<Output = Result<RoomID, Either<BackendError, ResponseError>>> {
         request!(
             self,
             RequestBody::RoomCreate(room),
@@ -393,7 +396,7 @@ impl BasicPluginSender {
     pub fn room_lookup(
         &self,
         name: String,
-    ) -> impl Future<Output = Result<RoomID, Either<PluginError, ResponseError>>> {
+    ) -> impl Future<Output = Result<RoomID, Either<BackendError, ResponseError>>> {
         request!(
             self,
             RequestBody::RoomLookup(name),
@@ -406,7 +409,7 @@ impl BasicPluginSender {
     pub fn room_join(
         &self,
         id: RoomID,
-    ) -> impl Future<Output = Result<(), Either<PluginError, ResponseError>>> {
+    ) -> impl Future<Output = Result<(), Either<BackendError, ResponseError>>> {
         request!(self, RequestBody::RoomJoin(id), ResponseBody::Success)
     }
 
@@ -414,7 +417,7 @@ impl BasicPluginSender {
     pub fn room_leave(
         &self,
         id: RoomID,
-    ) -> impl Future<Output = Result<(), Either<PluginError, ResponseError>>> {
+    ) -> impl Future<Output = Result<(), Either<BackendError, ResponseError>>> {
         request!(self, RequestBody::RoomLeave(id), ResponseBody::Success)
     }
 }

@@ -12,7 +12,7 @@ use tokio::{
     prelude::*,
 };
 
-/// The lowest-level wrapper for a plugin. Just a subprocess with JSON serialization and
+/// The lowest-level wrapper for a backend. Just a subprocess with JSON serialization and
 /// deserialization over stdin/stdout.
 #[derive(derivative::Derivative)]
 #[derivative(Debug)]

@@ -11,10 +11,10 @@ async fn main() -> Result<()> {
     let path = args.remove(1);
 
     let mut db = Database::open(path)?;
-    for plugin in db.list_plugins().await? {
-        println!("{}", plugin);
-        for id in db.list_rooms(plugin.clone()).await? {
-            let room = db.get_room(plugin.clone(), id).await?.unwrap();
+    for backend in db.list_backends().await? {
+        println!("{}", backend);
+        for id in db.list_rooms(backend.clone()).await? {
+            let room = db.get_room(backend.clone(), id).await?.unwrap();
             println!("- {}", room.name);
         }
     }

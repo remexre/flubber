@@ -1,5 +1,5 @@
 use anyhow::Result;
-use flubber_server::{start_http, Config, Database, Plugin};
+use flubber_server::{start_http, Backend, Config, Database};
 use std::path::PathBuf;
 use tokio::runtime::Runtime;
 

@@ -35,7 +35,7 @@
     while_true
 )]
 
+pub use flubber_server_backend::Backend;
 pub use flubber_server_config::Config;
 pub use flubber_server_db::Database;
-pub use flubber_server_plugin::Plugin;
 pub use flubber_server_web::start_http;

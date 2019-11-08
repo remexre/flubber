@@ -37,7 +37,7 @@ mod macros;
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use flubber_plugin_proto::{Message, MessageID, Room, RoomID};
+use flubber_backend_proto::{Message, MessageID, Room, RoomID};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::{
     collections::HashSet,
@@ -69,18 +69,18 @@ impl Database {
               , constraint blobHashUnique unique (hash) on conflict ignore
               );
             create table if not exists rooms
-              ( plugin text not null
+              ( backend text not null
               , id integer not null
               , parent integer
               , name text not null
               -- TODO: Keep track of edits?
               , sendable integer not null
               , deleted integer not null
-              , constraint roomIdUnique unique (plugin, id)
+              , constraint roomIdUnique unique (backend, id)
               -- TODO: Check parent?
               );
             create table if not exists messages
-              ( plugin text not null
+              ( backend text not null
               , id integer not null
               , sender integer not null
               , recipientType integer not null -- 0 = room, 1 = user
@@ -91,7 +91,7 @@ impl Database {
               , extra text not null -- as JSON
               , previous integer references messages(rowid) -- for tracking edits
               , deleted integer not null
-              , constraint messageIdUnique unique (plugin, id)
+              , constraint messageIdUnique unique (backend, id)
               -- TODO: Check sender?
               -- TODO: Check recipient?
               );
@@ -112,11 +112,11 @@ impl Database {
 
 queries! {
     /// Gets a room by ID.
-    fn get_room(&self, plugin: String, id: RoomID) -> Option<Room> {
+    fn get_room(&self, backend: String, id: RoomID) -> Option<Room> {
         self.query_row(
             r#"select (parent, name, sendable) from rooms
-               where plugin = ? and id = ? and deleted = 0"#,
-            params![plugin, id.0.clone()],
+               where backend = ? and id = ? and deleted = 0"#,
+            params![backend, id.0.clone()],
             |row| Ok(Room {
                 id,
                 parent: row.get::<_, Option<_>>(0)?.map(RoomID),
@@ -127,15 +127,15 @@ queries! {
     }
 
     /// Inserts or updates a room.
-    fn upsert_room(&self, _plugin: String, _room: Room) -> () { unimplemented!() }
+    fn upsert_room(&self, _backend: String, _room: Room) -> () { unimplemented!() }
 
     /// Marks a room as deleted.
-    fn delete_room(&self, _plugin: String, _id: RoomID) -> () { unimplemented!() }
+    fn delete_room(&self, _backend: String, _id: RoomID) -> () { unimplemented!() }
 
     /// Lists rooms.
-    fn list_rooms(&self, plugin: String) -> HashSet<RoomID> {
-        let mut stmt = self.prepare(r"select id from rooms where plugin = ?")?;
-        let mut rows = stmt.query(params![plugin])?;
+    fn list_rooms(&self, backend: String) -> HashSet<RoomID> {
+        let mut stmt = self.prepare(r"select id from rooms where backend = ?")?;
+        let mut rows = stmt.query(params![backend])?;
 
         let mut rooms = HashSet::new();
         while let Some(row) = rows.next()? {
@@ -147,39 +147,39 @@ queries! {
     }
 
     /// Gets a message by ID.
-    fn get_message(&self, _plugin: String, _id: MessageID) -> Option<Message> { unimplemented!() }
+    fn get_message(&self, _backend: String, _id: MessageID) -> Option<Message> { unimplemented!() }
 
     /// Inserts or updates a message.
-    fn upsert_message(&self, _plugin: String, _message: Message) -> () { unimplemented!() }
+    fn upsert_message(&self, _backend: String, _message: Message) -> () { unimplemented!() }
 
     /// Marks a message as deleted.
-    fn delete_message(&self, _plugin: String, _id: MessageID) -> () { unimplemented!() }
+    fn delete_message(&self, _backend: String, _id: MessageID) -> () { unimplemented!() }
 
     /// Lists messages.
     fn list_messages(
         &self,
-        _plugin: String,
+        _backend: String,
         _room: RoomID,
         _before: Option<DateTime<Utc>>,
         _after: Option<DateTime<Utc>>
     ) -> HashSet<MessageID> { unimplemented!() }
 
-    /// Lists the plugins that have been seen.
-    fn list_plugins(&self) -> HashSet<String> {
+    /// Lists the backends that have been seen.
+    fn list_backends(&self) -> HashSet<String> {
         let mut stmt = self.prepare(r#"
-            select distinct plugin from rooms
+            select distinct backend from rooms
             union
-            select distinct plugin from messages
+            select distinct backend from messages
         "#)?;
         let mut rows = stmt.query(params![])?;
 
-        let mut plugins = HashSet::new();
+        let mut backends = HashSet::new();
         while let Some(row) = rows.next()? {
-            let plugin = row.get(0)?;
-            drop(plugins.insert(plugin));
+            let backend = row.get(0)?;
+            drop(backends.insert(backend));
         }
 
-        Ok(plugins)
+        Ok(backends)
     }
 
     /// Gets an attachment by hash.

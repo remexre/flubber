@@ -1,4 +1,4 @@
-//! Abstractions for plugins.
+//! Abstractions for backends.
 #![deny(
     bad_style,
     bare_trait_objects,
@@ -32,14 +32,14 @@
     while_true
 )]
 
-mod basic_plugin;
+mod basic_backend;
 mod json_subprocess;
 
 pub use self::{
-    basic_plugin::{BasicPlugin, BasicPluginSender, PluginError},
+    basic_backend::{BackendError, BasicBackend, BasicBackendSender},
     json_subprocess::JsonSubprocess,
 };
-use flubber_plugin_proto::{
+use flubber_backend_proto::{
     Message, MessageID, NewMessage, NewRoom, ResponseError, Room, RoomID, Update,
 };
 use std::{
@@ -50,16 +50,16 @@ use std::{
 };
 use tokio::prelude::*;
 
-/// The highest-level interface to a plugin.
+/// The highest-level interface to a backend.
 ///
-/// - On plugin crash or protocol violation, restarts the plugin with exponential backoff. The
+/// - On backend crash or protocol violation, restarts the backend with exponential backoff. The
 /// exponential backoff time is reset once an update is received, or a request is responded to with
 /// a non-error response.
 /// - Requests have timeouts. A non-retryable error occurs if the request times out.
 /// - On retryable error, tries again with exponental backoff. If 10 failures occur, stops
 /// retrying, and promotes the error to a `ResponseError`.
 #[derive(Debug)]
-pub struct Plugin {
+pub struct Backend {
     inner: Option<()>,
     cmd: OsString,
     args: Vec<OsString>,
@@ -68,7 +68,7 @@ pub struct Plugin {
     shutting_down: bool,
 }
 
-impl Plugin {
+impl Backend {
     /// The initial amount of time to wait between retries, in milliseconds.
     const BASE_BACKOFF_TIME_MS: u64 = 100;
 
@@ -79,8 +79,8 @@ impl Plugin {
     const MAX_BACKOFF_TIME: Duration =
         Duration::from_millis(Self::BASE_BACKOFF_TIME_MS * (1 << 10));
 
-    /// Creates a new `Plugin`.
-    pub fn new<Arg, Args, Cmd, Env, K, V>(cmd: Cmd, args: Args, env: Env) -> Plugin
+    /// Creates a new `Backend`.
+    pub fn new<Arg, Args, Cmd, Env, K, V>(cmd: Cmd, args: Args, env: Env) -> Backend
     where
         Arg: Into<OsString>,
         Args: IntoIterator<Item = Arg>,
@@ -92,7 +92,7 @@ impl Plugin {
         let cmd = cmd.into();
         let args = args.into_iter().map(Into::into).collect();
         let env = env.into_iter().map(|(k, v)| (k.into(), v.into())).collect();
-        Plugin {
+        Backend {
             inner: None,
             cmd,
             args,
@@ -102,17 +102,17 @@ impl Plugin {
         }
     }
 
-    /// Polls for a reference to the `BasicPlugin`.
-    fn poll_basic_plugin(&mut self) -> Poll<&mut BasicPlugin> {
+    /// Polls for a reference to the `BasicBackend`.
+    fn poll_basic_backend(&mut self) -> Poll<&mut BasicBackend> {
         unimplemented!()
     }
 
-    /// Returns a `PluginSender` for the plugin.
-    pub fn sender(&self) -> PluginSender {
+    /// Returns a `BackendSender` for the backend.
+    pub fn sender(&self) -> BackendSender {
         unimplemented!()
     }
 
-    /// Handles the plugin needing a restart.
+    /// Handles the backend needing a restart.
     fn restart(&mut self) {
         let next = self.next_backoff;
         if next > Self::MAX_BACKOFF_TIME {
@@ -123,7 +123,7 @@ impl Plugin {
     }
 }
 
-impl Stream for Plugin {
+impl Stream for Backend {
     type Item = Update;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
@@ -132,8 +132,8 @@ impl Stream for Plugin {
                 return Poll::Ready(None);
             }
 
-            match self.poll_basic_plugin() {
-                Poll::Ready(plugin) => match Stream::poll_next(Pin::new(plugin), cx) {
+            match self.poll_basic_backend() {
+                Poll::Ready(backend) => match Stream::poll_next(Pin::new(backend), cx) {
                     Poll::Ready(Some(u)) => break Poll::Ready(Some(u)),
                     Poll::Ready(None) => self.restart(),
                     Poll::Pending => break Poll::Pending,
@@ -144,10 +144,10 @@ impl Stream for Plugin {
     }
 }
 
-/// A value that can issue requests to a `Plugin`. Note that requests are not serviced unless the
-/// `Plugin` is being polled on as a `Stream`.
+/// A value that can issue requests to a `Backend`. Note that requests are not serviced unless the
+/// `Backend` is being polled on as a `Stream`.
 #[derive(Clone, Debug)]
-pub struct PluginSender {
+pub struct BackendSender {
     inner: (),
 }
 
@@ -156,7 +156,7 @@ macro_rules! sender_methods {
         $(#[$attrs:meta])*
         pub async fn $name:ident($arg:ident: $argt:ty) -> $outt:ty;
     )*) => {
-        impl PluginSender {
+        impl BackendSender {
             $(
                 #[allow(unused)] // until finished implementing
                 $(#[$attrs])*

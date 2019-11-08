@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
-use flubber_plugin_proto::{MessageContent, NewMessage, RoomIDOrUserID};
-use flubber_server_plugin::BasicPlugin;
+use flubber_backend_proto::{MessageContent, NewMessage, RoomIDOrUserID};
+use flubber_server_backend::BasicBackend;
 use log::info;
 use serde_json::Value as Json;
 use std::ffi::OsString;
@@ -16,9 +16,9 @@ async fn main() -> Result<()> {
     }
     let cmd = args.remove(0);
 
-    let plugin = BasicPlugin::new(cmd, args, Vec::<(OsString, OsString)>::new()).await?;
-    let sender = plugin.sender();
-    tokio::spawn(plugin.for_each(|upd| {
+    let backend = BasicBackend::new(cmd, args, Vec::<(OsString, OsString)>::new()).await?;
+    let sender = backend.sender();
+    tokio::spawn(backend.for_each(|upd| {
         info!("Got update: {:#?}", upd);
         tokio::future::ready(())
     }));

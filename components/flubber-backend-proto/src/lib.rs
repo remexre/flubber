@@ -1,9 +1,9 @@
-//! The protocol between the server and plugins.
+//! The protocol between the server and backends.
 //!
 //! ## Example Session
 //!
 //! ```json
-//! P: {"plugin_name": "Example", "plugin_version": [0, 0, 1], "protocol_version": [0, 1, 0]}
+//! P: {"backend_name": "Example", "backend_version": [0, 0, 1], "protocol_version": [0, 1, 0]}
 //! S: {"sequence_number": 0, "body": {"type": "RoomLookup", "value": "#general"}}
 //! P: {"sequence_number": 0, "body": {"type": "RoomID", "value": "#general"}}
 //! S: {"sequence_number": 1, "body": {"type": "RoomJoin", "value": "#general"}}
@@ -61,21 +61,21 @@ use std::{
 };
 use sval::Value;
 
-/// Plugin sends this to the server when it starts.
+/// Backend sends this to the server when it starts.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct InitInfo {
-    /// The name of the plugin.
-    pub plugin_name: String,
+    /// The name of the backend.
+    pub backend_name: String,
 
-    /// The version of the plugin.
-    pub plugin_version: Version,
+    /// The version of the backend.
+    pub backend_version: Version,
 
     /// The version of the protocol. This is version `0.1.0`.
     pub protocol_version: Version,
 }
 
-/// The version of the plugin or protocol.
+/// The version of the backend or protocol.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct Version(pub u32, pub u32, pub u32);
@@ -134,7 +134,7 @@ pub struct Message {
     #[serde(with = "crate::serde::unix_ms")]
     pub edit_time: DateTime<Utc>,
 
-    /// Extra plugin-specific data.
+    /// Extra backend-specific data.
     #[serde(default)]
     pub extra: Json,
 }
@@ -152,7 +152,7 @@ pub struct NewMessage {
     /// The body of the message.
     pub content: MessageContent,
 
-    /// Extra plugin-specific data.
+    /// Extra backend-specific data.
     #[serde(default)]
     pub extra: Json,
 }
@@ -242,7 +242,7 @@ pub struct NewRoom {
     pub sendable: bool,
 }
 
-/// Information sent from the plugin to the server.
+/// Information sent from the backend to the server.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Value)]
 #[serde(tag = "type", content = "value")]
 #[sval(derive_from = "serde")]
@@ -260,7 +260,7 @@ pub enum Update {
     MessageDelete(MessageID),
 }
 
-/// A request as sent to the plugin.
+/// A request as sent to the backend.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct Request {
@@ -272,7 +272,7 @@ pub struct Request {
     pub body: RequestBody,
 }
 
-/// A response as sent from the plugin.
+/// A response as sent from the backend.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Value)]
 #[sval(derive_from = "serde")]
 pub struct Response {

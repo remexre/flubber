@@ -47,8 +47,8 @@ pub struct Config {
     /// The database configuration.
     pub database: DatabaseConfig,
 
-    /// The plugins the server should start.
-    pub plugins: HashMap<String, PluginConfig>,
+    /// The backends the server should start.
+    pub backends: HashMap<String, BackendConfig>,
 
     /// The web server's configuration.
     pub web: Option<WebConfig>,
@@ -113,10 +113,10 @@ pub struct DatabaseConfig {
     pub file: PathBuf,
 }
 
-/// The configuration of a single plugin.
+/// The configuration of a single backend.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct PluginConfig {
-    /// The command used to start the plugin.
+pub struct BackendConfig {
+    /// The command used to start the backend.
     pub cmd: String,
 
     /// Arguments passed to the command.
