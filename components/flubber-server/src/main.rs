@@ -25,8 +25,9 @@ fn main(args: Args) -> Result<()> {
 
     let runtime = Runtime::new()?;
     runtime.block_on(async {
-        let mut config = Config::watch(args.config_file).await?;
-        log::info!("{:#?}", config.recv().await);
+        let mut configs = Config::watch(args.config_file).await?;
+        let config = configs.recv().await;
+        log::info!("{:#?}", config);
         Ok(())
     })
 }
