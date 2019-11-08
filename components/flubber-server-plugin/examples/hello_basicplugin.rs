@@ -3,6 +3,7 @@ use flubber_plugin_proto::{MessageContent, NewMessage, RoomIDOrUserID};
 use flubber_server_plugin::BasicPlugin;
 use log::info;
 use serde_json::Value as Json;
+use std::ffi::OsString;
 use tokio::prelude::*;
 
 #[tokio::main]
@@ -15,7 +16,7 @@ async fn main() -> Result<()> {
     }
     let cmd = args.remove(0);
 
-    let plugin = BasicPlugin::new(cmd, args).await?;
+    let plugin = BasicPlugin::new(cmd, args, Vec::<(OsString, OsString)>::new()).await?;
     let sender = plugin.sender();
     tokio::spawn(plugin.for_each(|upd| {
         info!("Got update: {:#?}", upd);

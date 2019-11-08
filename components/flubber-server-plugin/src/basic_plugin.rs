@@ -73,11 +73,20 @@ pub struct BasicPlugin {
 
 impl BasicPlugin {
     /// Creates a new `BasicPlugin`.
-    pub async fn new<Arg: AsRef<OsStr>, Args: IntoIterator<Item = Arg>, Cmd: AsRef<OsStr>>(
+    pub async fn new<Arg, Args, Cmd, Env, K, V>(
         cmd: Cmd,
         args: Args,
-    ) -> Result<BasicPlugin, PluginError> {
-        let mut inner = JsonSubprocess::new(cmd, args)
+        env: Env,
+    ) -> Result<BasicPlugin, PluginError>
+    where
+        Arg: AsRef<OsStr>,
+        Args: IntoIterator<Item = Arg>,
+        Cmd: AsRef<OsStr>,
+        Env: IntoIterator<Item = (K, V)>,
+        K: AsRef<OsStr>,
+        V: AsRef<OsStr>,
+    {
+        let mut inner = JsonSubprocess::new(cmd, args, env)
             .map_err(Arc::new)
             .map_err(PluginError::Io)?;
 

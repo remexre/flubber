@@ -63,6 +63,7 @@ pub struct Plugin {
     inner: Option<()>,
     cmd: OsString,
     args: Vec<OsString>,
+    env: Vec<(OsString, OsString)>,
     next_backoff: Duration,
     shutting_down: bool,
 }
@@ -79,16 +80,23 @@ impl Plugin {
         Duration::from_millis(Self::BASE_BACKOFF_TIME_MS * (1 << 10));
 
     /// Creates a new `Plugin`.
-    pub fn new<Arg: Into<OsString>, Args: IntoIterator<Item = Arg>, Cmd: Into<OsString>>(
-        cmd: Cmd,
-        args: Args,
-    ) -> Plugin {
+    pub fn new<Arg, Args, Cmd, Env, K, V>(cmd: Cmd, args: Args, env: Env) -> Plugin
+    where
+        Arg: Into<OsString>,
+        Args: IntoIterator<Item = Arg>,
+        Cmd: Into<OsString>,
+        Env: IntoIterator<Item = (K, V)>,
+        K: Into<OsString>,
+        V: Into<OsString>,
+    {
         let cmd = cmd.into();
         let args = args.into_iter().map(Into::into).collect();
+        let env = env.into_iter().map(|(k, v)| (k.into(), v.into())).collect();
         Plugin {
             inner: None,
             cmd,
             args,
+            env,
             next_backoff: Self::BASE_BACKOFF_TIME,
             shutting_down: false,
         }

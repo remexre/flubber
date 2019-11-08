@@ -1,0 +1,11 @@
+[database]
+file = "flubber.db"
+
+[plugins.asdf]
+cmd = "./example"
+args = ["-vvv", "--debug-on-crash"]
+env-file = "example.env"
+
+[plugins.asdf.env]
+DEBUGGER = "gdb-network"
+DEBUGGER_GDB_PORT = "12345"

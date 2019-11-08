@@ -3,7 +3,9 @@ members = [
 	"components/flubber-plugin",
 	"components/flubber-plugin-proto",
 	"components/flubber-server",
+	"components/flubber-server-config",
 	"components/flubber-server-db",
 	"components/flubber-server-plugin",
+	"components/flubber-server-web",
 	"components/flubber-utils"
 ]

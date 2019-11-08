@@ -35,7 +35,7 @@
 #[macro_use]
 mod macros;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use flubber_plugin_proto::{Message, MessageID, Room, RoomID};
 use rusqlite::{params, Connection, OptionalExtension};
@@ -57,9 +57,10 @@ pub struct Database {
 }
 
 impl Database {
-    /// Opens a database "connection" to the given path.
+    /// Opens a database "connection" to the given path. Note that this blocks the current
+    /// thread.
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Database> {
-        let conn = Connection::open(path)?;
+        let conn = Connection::open(path).context("Failed to open connection to database")?;
         conn.execute_batch(
             r#"
             create table if not exists blobs
@@ -99,7 +100,8 @@ impl Database {
               , attachment text not null references blobs(hash)
               );
             "#,
-        )?;
+        )
+        .context("Failed to initialize database")?;
         let (send, recv) = mpsc::sync_channel(8);
         let thread = Arc::new(spawn(move || {
             recv.into_iter().for_each(|query| conn.handle_query(query));

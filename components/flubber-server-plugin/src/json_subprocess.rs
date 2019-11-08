@@ -24,12 +24,22 @@ pub struct JsonSubprocess {
 
 impl JsonSubprocess {
     /// Creates a new `JsonSubprocess`.
-    pub fn new<Arg: AsRef<OsStr>, Args: IntoIterator<Item = Arg>, Cmd: AsRef<OsStr>>(
+    pub fn new<Arg, Args, Cmd, Env, K, V>(
         cmd: Cmd,
         args: Args,
-    ) -> Result<JsonSubprocess, std::io::Error> {
+        env: Env,
+    ) -> Result<JsonSubprocess, std::io::Error>
+    where
+        Arg: AsRef<OsStr>,
+        Args: IntoIterator<Item = Arg>,
+        Cmd: AsRef<OsStr>,
+        Env: IntoIterator<Item = (K, V)>,
+        K: AsRef<OsStr>,
+        V: AsRef<OsStr>,
+    {
         let mut child = Command::new(cmd)
             .args(args)
+            .envs(env)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())

@@ -3,10 +3,18 @@ flubber
 
 A multi-service chat bouncer.
 
-Notes
+TODOs
 -----
 
-Currently uses nightly for async/await. Hopefully, this'll change by next week!
+-	Track unreads
+-	Emotes
+-	CI, build Docker ctr, etc
+-	Edits
+-	Channel topics
+-	Track users
+-	"Identities" (as o2m w/ users on several backends)
+-	Spec out client-server protocol
+-	Make a "notes to self" backend
 
 License
 -------

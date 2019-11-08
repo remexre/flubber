@@ -1,4 +1,7 @@
 .*
 !.gitignore
 
+*.db
+*.env
+
 target/

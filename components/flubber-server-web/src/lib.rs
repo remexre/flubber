@@ -1,7 +1,4 @@
-//! The Flubber server.
-//!
-//! This re-exports the various `flubber-server-*` crates most important items, and additionally
-//! provides the `run` function.
+//! The HTTP interface to the Flubber server.
 #![deny(
     bad_style,
     bare_trait_objects,
@@ -35,7 +32,16 @@
     while_true
 )]
 
-pub use flubber_server_config::Config;
-pub use flubber_server_db::Database;
-pub use flubber_server_plugin::Plugin;
-pub use flubber_server_web::start_http;
+use flubber_server_db::Database;
+use std::net::SocketAddr;
+use warp::{filters::BoxedFilter, Filter, Reply};
+
+/// Listens for incoming HTTP connections.
+pub async fn start_http(db: Database, addr: impl Into<SocketAddr> + 'static) {
+    warp::serve(filter(db)).run(addr).await
+}
+
+/// Returns the `Filter` used by `start`.
+pub fn filter(_db: Database) -> BoxedFilter<(impl Reply,)> {
+    warp::any().map(warp::reply).boxed()
+}

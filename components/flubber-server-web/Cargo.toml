@@ -1,0 +1,14 @@
+[package]
+authors = ["Nathan Ringo <remexre@gmail.com>"]
+edition = "2018"
+license = "Apache-2.0/MIT"
+name = "flubber-server-web"
+version = "0.1.0-alpha"
+
+[dependencies]
+flubber-server-db = { path = "../flubber-server-db" }
+
+# log = "0.4.8"
+
+# tokio = "0.2.0-alpha.6"
+warp = { git = "https://github.com/seanmonstar/warp.git", rev = "b4c022871ca995ee2c29276c5000b20b5fd673c1" }
