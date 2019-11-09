@@ -1,6 +1,9 @@
 [database]
 file = "flubber.db"
 
+[web]
+port = 8080
+
 [backends.asdf]
 cmd = "./example"
 args = ["-vvv", "--debug-on-crash"]

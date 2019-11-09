@@ -17,9 +17,8 @@ struct Args {
 #[paw::main]
 fn main(args: Args) -> Result<()> {
     femme::start(match args.verbosity {
-        0 => log::LevelFilter::Warn,
-        1 => log::LevelFilter::Info,
-        2 => log::LevelFilter::Debug,
+        0 => log::LevelFilter::Info,
+        1 => log::LevelFilter::Debug,
         _ => log::LevelFilter::Trace,
     })?;
 

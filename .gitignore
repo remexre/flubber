@@ -3,5 +3,6 @@
 
 *.db
 *.env
+/flubber.toml
 
 target/
