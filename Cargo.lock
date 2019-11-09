@@ -429,6 +429,7 @@ dependencies = [
  "flubber-server-config 0.1.0-alpha",
  "flubber-server-db 0.1.0-alpha",
  "flubber-server-web 0.1.0-alpha",
+ "futures-util-preview 0.3.0-alpha.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "paw 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "structopt 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
