@@ -8,6 +8,11 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
+    - name: Install APT Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends libsqlite3-dev
+
     - name: Cache Rustup
       uses: actions/cache@v1.0.0
       with:
