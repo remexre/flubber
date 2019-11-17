@@ -7,9 +7,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
-    - name: Cache
+
+    - name: Cache target
       uses: actions/cache@v1.0.0
-    - name: Build
+      with:
+        path: target/
+        key: ${{ runner.os }}-target
+
+    - name: Build (stable)
       run: cargo build --verbose
-    - name: Run tests
+
+    - name: Run tests (stable)
       run: cargo test --verbose
+
+    - name: Build (nightly)
+      run: cargo +nightly build --verbose
+
+    - name: Run tests (nightly)
+      run: cargo +nightly test --verbose
