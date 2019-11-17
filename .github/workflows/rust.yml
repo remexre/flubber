@@ -20,7 +20,7 @@ jobs:
         key: ${{ runner.os }}-rustup
 
     - name: Update Rust
-      run: rustup update
+      run: rustup update stable nightly
 
     - name: Cache target
       uses: actions/cache@v1.0.0
