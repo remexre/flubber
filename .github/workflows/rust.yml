@@ -8,6 +8,15 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
+    - name: Cache Rustup
+      uses: actions/cache@v1.0.0
+      with:
+        path: ~/.rustup
+        key: ${{ runner.os }}-rustup
+
+    - name: Update Rust
+      run: rustup update
+
     - name: Cache target
       uses: actions/cache@v1.0.0
       with:
